@@ -5,8 +5,6 @@
 #include "ccbase/common.h"
 #include "ccbase/closure.h"
 
-static int i = 0x100000000UL;
-
 namespace ccb {
 
 std::thread CreateThread(ClosureFunc<void()> func);
