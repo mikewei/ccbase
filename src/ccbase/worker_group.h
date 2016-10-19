@@ -60,6 +60,9 @@ public:
   size_t id() const {
     return id_;
   }
+  WorkerGroup* worker_group() const {
+    return group_;
+  }
   bool PostTask(ClosureFunc<void()> func);
 private:
   Worker(WorkerGroup* grp, size_t id, TaskQueue::InQueue* q);
