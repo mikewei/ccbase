@@ -31,6 +31,7 @@
 #define _CCB_EVENTFD_H
 
 #include <sys/eventfd.h>
+#include <unistd.h>
 #include <poll.h>
 #include <error.h>
 #include <system_error>
