@@ -10,3 +10,21 @@ TEST(EventFd, Simple)
   ASSERT_FALSE(efd.GetWait(10));
 }
 
+PERF_TEST(EventFd, ConstructPerf)
+{
+  ccb::EventFd efd;
+}
+
+PERF_TEST(EventFd, NotifyAndGet)
+{
+  static ccb::EventFd efd;
+  efd.Notify();
+  efd.Get();
+}
+
+PERF_TEST(EventFd, CtorNotifyAndGet)
+{
+  ccb::EventFd efd;
+  efd.Notify();
+  efd.Get();
+}
