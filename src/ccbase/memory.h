@@ -3,7 +3,7 @@
 
 #include "common.h"
 
-LIB_NAMESPACE_BEGIN
+namespace ccb {
 
 #if __GNUC__
 # if defined __i386__ || defined __x86_64__
@@ -24,6 +24,6 @@ static inline void MemoryWriteBarrier() {
 #endif
 
 
-LIB_NAMESPACE_END
+} // namespace ccb
 
 #endif

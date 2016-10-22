@@ -3,7 +3,7 @@
 
 #include "ccbase/common.h"
 
-LIB_NAMESPACE_BEGIN
+namespace ccb {
 
 struct ListHead
 {
@@ -152,6 +152,6 @@ struct ListHead
   for ((pos) = (head)->prev; (pos) != (head); (pos) = (pos)->prev)
 
 
-LIB_NAMESPACE_END
+} // namespace ccb
 
 #endif

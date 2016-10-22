@@ -36,7 +36,7 @@
 #include <system_error>
 #include "common.h"
 
-LIB_NAMESPACE_BEGIN
+namespace ccb {
 
 class EventFd
 {
@@ -94,6 +94,6 @@ private:
   int fd_;
 };
 
-LIB_NAMESPACE_END
+} // namespace ccb
 
 #endif

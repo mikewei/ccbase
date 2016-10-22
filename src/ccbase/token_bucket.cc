@@ -41,7 +41,7 @@
 
 #define TV2US(ptv) ((ptv)->tv_sec * 1000000 + (ptv)->tv_usec)
 
-LIB_NAMESPACE_BEGIN
+namespace ccb {
 
 TokenBucket::TokenBucket(uint32_t tokens_per_sec)
   : TokenBucket(tokens_per_sec, tokens_per_sec / 5) {}
@@ -132,5 +132,5 @@ int TokenBucket::Overdraft(uint32_t need_tokens)
   return (token_count_ < 0 ? -token_count_ : 0);
 }
 
-LIB_NAMESPACE_END
+} // namespace ccb
 
