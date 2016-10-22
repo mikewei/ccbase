@@ -1,10 +1,15 @@
-#ifndef _COMMON_H
-#define _COMMON_H
+#ifndef _CCB_COMMON_H
+#define _CCB_COMMON_H
 
 #include <stdint.h>
 #include <assert.h>
 #include <stdio.h>
-#include <iostream>
 #include <stdexcept>
 
-#endif
+#define NOT_COPYABLE_AND_MOVABLE(ClassName) \
+  ClassName(const ClassName&) = delete; \
+  void operator=(const ClassName&) = delete; \
+  ClassName(ClassName&&) = delete; \
+  void operator=(ClassName&&) = delete
+
+#endif // _CCB_COMMON_H

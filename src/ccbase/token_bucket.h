@@ -27,8 +27,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _TOKEN_BUCKET_H
-#define _TOKEN_BUCKET_H
+#ifndef _CCB_TOKEN_BUCKET_H
+#define _CCB_TOKEN_BUCKET_H
 
 #include <sys/time.h>
 #include <stdint.h>
@@ -72,4 +72,4 @@ inline uint32_t TokenBucket::tokens() const
 
 } // namespace ccb
 
-#endif
+#endif // _CCB_TOKEN_BUCKET_H

@@ -64,11 +64,14 @@ public:
     return group_;
   }
   bool PostTask(ClosureFunc<void()> func);
+
 private:
+  NOT_COPYABLE_AND_MOVABLE(Worker);
+
   Worker(WorkerGroup* grp, size_t id, TaskQueue::InQueue* q);
   void WorkerMainEntry();
   void BatchProcessTasks(size_t max);
-private:
+
   WorkerGroup* group_;
   size_t id_;
   TaskQueue::InQueue* inq_;
@@ -106,10 +109,14 @@ public:
   bool PostTask(ClosureFunc<void()> func, size_t delay_ms);
   bool PostTask(size_t worker_id, ClosureFunc<void()> func, size_t delay_ms);
   bool PostPeriodTask(ClosureFunc<void()> func, size_t period_ms);
-  bool PostPeriodTask(size_t worker_id, ClosureFunc<void()> func, size_t period_ms);
+  bool PostPeriodTask(size_t worker_id, ClosureFunc<void()> func,
+                      size_t period_ms);
+
 private:
   TaskQueue::OutQueue* GetOutQueue();
-private:
+
+  NOT_COPYABLE_AND_MOVABLE(WorkerGroup);
+
   TaskQueue queue_;
   std::vector<std::unique_ptr<Worker>> workers_;
   static thread_local std::unordered_map<size_t, TaskQueue::OutQueue*> tls_producer_ctx;

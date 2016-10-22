@@ -1,5 +1,5 @@
-#ifndef _MACRO_LIST_H
-#define _MACRO_LIST_H
+#ifndef _CCB_MACRO_LIST_H
+#define _CCB_MACRO_LIST_H
 
 #include "ccbase/common.h"
 
@@ -154,4 +154,4 @@ struct ListHead
 
 } // namespace ccb
 
-#endif
+#endif // _CCB_MACRO_LIST_H

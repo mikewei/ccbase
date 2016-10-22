@@ -12,6 +12,6 @@ std::thread CreateThread(const std::string& name, ClosureFunc<void()> func);
 void CreateDetachedThread(ClosureFunc<void()> func);
 void CreateDetachedThread(const std::string& name, ClosureFunc<void()> func);
 
-}
+} // namespace ccb
 
-#endif
+#endif // _CCB_THREAD_H

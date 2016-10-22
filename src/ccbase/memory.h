@@ -1,7 +1,7 @@
-#ifndef _MEMORY_H
-#define _MEMORY_H
+#ifndef _CCB_MEMORY_H
+#define _CCB_MEMORY_H
 
-#include "common.h"
+#include "ccbase/common.h"
 
 namespace ccb {
 
@@ -26,4 +26,4 @@ static inline void MemoryWriteBarrier() {
 
 } // namespace ccb
 
-#endif
+#endif // _CCB_MEMORY_H

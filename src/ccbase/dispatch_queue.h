@@ -59,12 +59,15 @@ public:
     virtual bool Pop(T* ptr) = 0;
     virtual bool PopWait(T* ptr, int timeout) = 0;
   };
-public:
+
   DispatchQueue(size_t qlen);
   virtual ~DispatchQueue();
   OutQueue* RegisterProducer();
   InQueue* RegisterConsumer();
+
 private:
+  NOT_COPYABLE_AND_MOVABLE(DispatchQueue);
+
   size_t qlen_;
   typedef FastQueue<T, true> _Queue;
   std::mutex mutex_;

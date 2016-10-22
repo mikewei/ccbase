@@ -27,14 +27,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVENTFD_H
-#define _EVENTFD_H
+#ifndef _CCB_EVENTFD_H
+#define _CCB_EVENTFD_H
 
 #include <sys/eventfd.h>
 #include <poll.h>
 #include <error.h>
 #include <system_error>
-#include "common.h"
+#include "ccbase/common.h"
 
 namespace ccb {
 
@@ -61,7 +61,7 @@ public:
     }
     return true;
   }
-public:
+
   // syscall wrapper
   EventFd(unsigned int initval, int flags) {
     int res = eventfd(initval, flags);
@@ -90,7 +90,10 @@ public:
   int fd() {
     return fd_;
   }
+
 private:
+  NOT_COPYABLE_AND_MOVABLE(EventFd);
+
   int fd_;
 };
 

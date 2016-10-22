@@ -27,8 +27,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _FAST_QUEUE_H
-#define _FAST_QUEUE_H
+#ifndef _CCB_FAST_QUEUE_H
+#define _CCB_FAST_QUEUE_H
 
 #include <poll.h>
 #include <memory>
@@ -56,6 +56,7 @@ public:
     return (head_ > tail_) ? 
       (head_ - 1 - tail_) : (head_ - 1 + qlen_ - tail_);
   }
+
 protected:
   void move_head() {
     size_t head = head_ + 1;
@@ -69,7 +70,10 @@ protected:
       tail -= qlen_;
     tail_ = tail;
   }
+
 private:
+  NOT_COPYABLE_AND_MOVABLE(FastQueue);
+
   size_t qlen_;
   volatile size_t head_;
   volatile size_t tail_;
@@ -165,4 +169,4 @@ bool FastQueue<T,kEnableNotify>::PopWait(T* ptr, int timeout)
 
 } // namespace ccb
 
-#endif // _CCB_DISPATCH_QUEUE_H
+#endif // _CCB_FAST_QUEUE_H

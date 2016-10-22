@@ -27,8 +27,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _TIMER_WHEEL_H
-#define _TIMER_WHEEL_H
+#ifndef _CCB_TIMER_WHEEL_H
+#define _CCB_TIMER_WHEEL_H
 
 #include <memory>
 #include "ccbase/closure.h"
@@ -64,11 +64,7 @@ public:
   tick_t GetCurrentTick() const;
 
 private:
-  // not copyable and movable
-  TimerWheel(const TimerWheel&) = delete;
-  TimerWheel& operator=(const TimerWheel&) = delete;
-  TimerWheel(TimerWheel&&) = delete;
-  TimerWheel& operator=(TimerWheel&&) = delete;
+  NOT_COPYABLE_AND_MOVABLE(TimerWheel);
 
   std::shared_ptr<TimerWheelImpl> pimpl_;
 };
@@ -78,16 +74,14 @@ class TimerOwner
 public:
   TimerOwner();
   ~TimerOwner(); // delete the timer
+
   bool has_timer() const {
     return static_cast<bool>(timer_);
   }
   void Cancel();
+
 private:
-  // not copyable and movable
-  TimerOwner(const TimerOwner&) = delete;
-  TimerOwner& operator=(const TimerOwner&) = delete;
-  TimerOwner(TimerOwner&&) = delete;
-  TimerOwner& operator=(TimerOwner&&) = delete;
+  NOT_COPYABLE_AND_MOVABLE(TimerOwner);
 
   std::unique_ptr<TimerWheelNode> timer_;
   std::shared_ptr<TimerWheelImpl> timer_wheel_;
@@ -96,4 +90,4 @@ private:
 
 } // namespace ccb
 
-#endif
+#endif // _CCB_TIMER_WHEEL_H
