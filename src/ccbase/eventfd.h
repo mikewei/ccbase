@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, Bin Wei <bin@vip.qq.com>
+/* Copyright (c) 2012-2017, Bin Wei <bin@vip.qq.com>
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
  * copyright notice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
- *     * The name of of its contributors may not be used to endorse or 
+ *     * The names of its contributors may not be used to endorse or 
  * promote products derived from this software without specific prior 
  * written permission.
  * 
@@ -27,8 +27,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _CCB_EVENTFD_H
-#define _CCB_EVENTFD_H
+#ifndef CCBASE_EVENTFD_H_
+#define CCBASE_EVENTFD_H_
 
 #include <sys/eventfd.h>
 #include <unistd.h>
@@ -39,9 +39,8 @@
 
 namespace ccb {
 
-class EventFd
-{
-public:
+class EventFd {
+ public:
   // useful API
   EventFd() : EventFd(0, EFD_NONBLOCK) {}
   bool Notify() {
@@ -92,12 +91,12 @@ public:
     return fd_;
   }
 
-private:
+ private:
   NOT_COPYABLE_AND_MOVABLE(EventFd);
 
   int fd_;
 };
 
-} // namespace ccb
+}  // namespace ccb
 
-#endif
+#endif  // CCBASE_EVENTFD_H_

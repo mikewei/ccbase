@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, Bin Wei <bin@vip.qq.com>
+/* Copyright (c) 2012-2017, Bin Wei <bin@vip.qq.com>
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
  * copyright notice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
- *     * The name of of its contributors may not be used to endorse or 
+ *     * The names of its contributors may not be used to endorse or 
  * promote products derived from this software without specific prior 
  * written permission.
  * 
@@ -27,8 +27,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _CCB_TIMER_WHEEL_H
-#define _CCB_TIMER_WHEEL_H
+#ifndef CCBASE_TIMER_WHEEL_H_
+#define CCBASE_TIMER_WHEEL_H_
 
 #include <memory>
 #include "ccbase/closure.h"
@@ -42,10 +42,9 @@ class TimerOwner;
 
 using tick_t = uint64_t;
 
-class TimerWheel
-{
-public:
-  TimerWheel(size_t us_per_tick = 1000, bool enable_lock = true);
+class TimerWheel {
+ public:
+  explicit TimerWheel(size_t us_per_tick = 1000, bool enable_lock = true);
   ~TimerWheel();
 
   bool AddTimer(tick_t timeout,
@@ -63,24 +62,23 @@ public:
   size_t GetTimerCount() const;
   tick_t GetCurrentTick() const;
 
-private:
+ private:
   NOT_COPYABLE_AND_MOVABLE(TimerWheel);
 
   std::shared_ptr<TimerWheelImpl> pimpl_;
 };
 
-class TimerOwner
-{
-public:
+class TimerOwner {
+ public:
   TimerOwner();
-  ~TimerOwner(); // delete the timer
+  ~TimerOwner();  // delete the timer
 
   bool has_timer() const {
     return static_cast<bool>(timer_);
   }
   void Cancel();
 
-private:
+ private:
   NOT_COPYABLE_AND_MOVABLE(TimerOwner);
 
   std::unique_ptr<TimerWheelNode> timer_;
@@ -88,6 +86,6 @@ private:
   friend class TimerWheelImpl;
 };
 
-} // namespace ccb
+}  // namespace ccb
 
-#endif // _CCB_TIMER_WHEEL_H
+#endif  // CCBASE_TIMER_WHEEL_H_

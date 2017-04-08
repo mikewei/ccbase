@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, Bin Wei <bin@vip.qq.com>
+/* Copyright (c) 2012-2017, Bin Wei <bin@vip.qq.com>
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
  * copyright notice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
- *     * The name of of its contributors may not be used to endorse or 
+ *     * The names of its contributors may not be used to endorse or 
  * promote products derived from this software without specific prior 
  * written permission.
  * 
@@ -27,11 +27,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _CCB_WORKER_GROUP_H
-#define _CCB_WORKER_GROUP_H
+#ifndef CCBASE_WORKER_GROUP_H_
+#define CCBASE_WORKER_GROUP_H_
 
 #include <thread>
 #include <atomic>
+#include <memory>
 #include <unordered_map>
 #include <array>
 #include <vector>
@@ -46,9 +47,8 @@ using TaskQueue = DispatchQueue<ClosureFunc<void()>>;
 
 class WorkerGroup;
 
-class Worker : public TimerWheel
-{
-public:
+class Worker : public TimerWheel {
+ public:
   ~Worker();
   static Worker* self() {
     return tls_self;
@@ -65,7 +65,7 @@ public:
   }
   bool PostTask(ClosureFunc<void()> func);
 
-private:
+ private:
   NOT_COPYABLE_AND_MOVABLE(Worker);
 
   Worker(WorkerGroup* grp, size_t id, TaskQueue::InQueue* q);
@@ -81,9 +81,8 @@ private:
   friend class WorkerGroup;
 };
 
-class WorkerGroup
-{
-public:
+class WorkerGroup {
+ public:
   WorkerGroup(size_t worker_num, size_t queue_size);
   ~WorkerGroup();
   size_t id() const {
@@ -112,7 +111,7 @@ public:
   bool PostPeriodTask(size_t worker_id, ClosureFunc<void()> func,
                       size_t period_ms);
 
-private:
+ private:
   TaskQueue::OutQueue* GetOutQueue();
 
   NOT_COPYABLE_AND_MOVABLE(WorkerGroup);
@@ -125,6 +124,6 @@ private:
   static std::atomic<size_t> s_next_group_id;
 };
 
-} // namespace ccb
+}  // namespace ccb
 
-#endif
+#endif  // CCBASE_WORKER_GROUP_H_

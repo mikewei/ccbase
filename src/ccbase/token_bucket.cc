@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, Bin Wei <bin@vip.qq.com>
+/* Copyright (c) 2012-2017, Bin Wei <bin@vip.qq.com>
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
  * copyright notice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
- *     * The name of of its contributors may not be used to endorse or 
+ *     * The names of its contributors may not be used to endorse or 
  * promote products derived from this software without specific prior 
  * written permission.
  * 
@@ -50,8 +50,7 @@ TokenBucket::TokenBucket(uint32_t tokens_per_sec, uint32_t bucket_size)
   : TokenBucket(tokens_per_sec, bucket_size, bucket_size) {}
 
 TokenBucket::TokenBucket(uint32_t tokens_per_sec, uint32_t bucket_size,
-                         uint32_t init_tokens, const struct timeval* tv_now)
-{
+                         uint32_t init_tokens, const struct timeval* tv_now) {
   struct timeval tv;
 
   tokens_per_sec_ = tokens_per_sec;
@@ -65,14 +64,12 @@ TokenBucket::TokenBucket(uint32_t tokens_per_sec, uint32_t bucket_size,
   last_calc_delta_ = 0;
 }
 
-void TokenBucket::Mod(uint32_t tokens_per_sec, uint32_t bucket_size)
-{
+void TokenBucket::Mod(uint32_t tokens_per_sec, uint32_t bucket_size) {
   tokens_per_sec_ = tokens_per_sec;
   bucket_size_ = bucket_size;
 }
 
-void TokenBucket::Gen(const struct timeval* tv_now)
-{
+void TokenBucket::Gen(const struct timeval* tv_now) {
   struct timeval tv;
   uint64_t us_now, us_past;
   uint64_t new_tokens, calc_delta;
@@ -109,16 +106,14 @@ void TokenBucket::Gen(const struct timeval* tv_now)
   return;
 }
 
-bool TokenBucket::Check(uint32_t need_tokens)
-{
+bool TokenBucket::Check(uint32_t need_tokens) {
   if (token_count_ < (int64_t)need_tokens) {
     return false;
   }
   return true;
 }
 
-bool TokenBucket::Get(uint32_t need_tokens)
-{
+bool TokenBucket::Get(uint32_t need_tokens) {
   if (token_count_ < (int64_t)need_tokens) {
     return false;
   }
@@ -126,11 +121,10 @@ bool TokenBucket::Get(uint32_t need_tokens)
   return true;
 }
 
-int TokenBucket::Overdraft(uint32_t need_tokens)
-{
+int TokenBucket::Overdraft(uint32_t need_tokens) {
   token_count_ -= need_tokens;
   return (token_count_ < 0 ? -token_count_ : 0);
 }
 
-} // namespace ccb
+}  // namespace ccb
 

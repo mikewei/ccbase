@@ -2,7 +2,7 @@
 //     pump.py closure.h.pump
 // DO NOT EDIT BY HAND!!!
 
-/* Copyright (c) 2012-2016, Bin Wei <bin@vip.qq.com>
+/* Copyright (c) 2012-2017, Bin Wei <bin@vip.qq.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -15,7 +15,7 @@
  * copyright notice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
- *     * The name of of its contributors may not be used to endorse or
+ *     * The names of its contributors may not be used to endorse or
  * promote products derived from this software without specific prior
  * written permission.
  *
@@ -31,8 +31,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _CCB_CLOSURE_H
-#define _CCB_CLOSURE_H
+#ifndef CCBASE_CLOSURE_H_
+#define CCBASE_CLOSURE_H_
 
 #include <assert.h>
 #include <atomic>
@@ -42,38 +42,33 @@
 namespace ccb {
 
 // Closure base class
-class ClosureBase
-{
-public:
+class ClosureBase {
+ public:
   virtual ~ClosureBase() {}
   virtual bool IsPermanent() const = 0;
 };
 
 // Closure template
 template <typename Signature>
-class Closure : public ClosureBase
-{
-public:
+class Closure : public ClosureBase {
+ public:
 };
 
 template <typename Signature>
-class ClosureFunc
-{
-public:
+class ClosureFunc {
+ public:
 };
 
 // Closure specified for 0 arguments
 template <
   typename R >
-class Closure<R ()>
-  : public ClosureBase
-{
-public:
+class Closure<R()> : public ClosureBase {
+ public:
   Closure() : ref_count_(1) {}
   Closure(const Closure& c) : ref_count_(1) {}
   virtual R Run() = 0;
-  virtual Closure<R ()>* Clone() = 0;
-private:
+  virtual Closure<R()>* Clone() = 0;
+ private:
   void AddRef() {
     assert(ref_count_ > 0);
     ref_count_.fetch_add(1);
@@ -85,18 +80,17 @@ private:
     }
   }
   std::atomic<int64_t> ref_count_;
-  friend class ClosureFunc<R ()>;
+  friend class ClosureFunc<R()>;
 };
 
 // forward declaraton for ClosureFunc
-template <typename R, typename F> Closure<R ()>* NewPermanentClosure(F&&);
+template <typename R, typename F> Closure<R()>* NewPermanentClosure(F&&);
 
 template <
   typename R >
-class ClosureFunc<R ()>
-{
-public:
-  typedef Closure<R ()> ClosureType;
+class ClosureFunc<R()> {
+ public:
+  typedef Closure<R()> ClosureType;
   ClosureFunc() : p_(nullptr) {}
   ClosureFunc(std::nullptr_t) : p_(nullptr) {}
   template <class F,
@@ -104,38 +98,60 @@ public:
       ClosureFunc>::value>::type>
   ClosureFunc(F&& f) noexcept :
       ClosureFunc(NewPermanentClosure<R>(std::forward<F>(f))) {}
-  explicit ClosureFunc(ClosureType* p) noexcept : p_(p) { assert(!p ||
-      p->IsPermanent()); }
+  explicit ClosureFunc(ClosureType* p) noexcept : p_(p) {
+    assert(!p || p->IsPermanent());
+  }
   ClosureFunc(const ClosureFunc& c) noexcept : ClosureFunc(c.share()) {}
   ClosureFunc(ClosureFunc&& c) noexcept : p_(c.release()) {}
-  ~ClosureFunc() { if (p_) p_->DelRef(); }
-  operator bool() const { return static_cast<bool>(p_); }
-  R operator()() const { return p_->Run(); }
-  void swap(ClosureFunc& c) { std::swap(p_, c.p_); }
-  void reset(ClosureType* p = nullptr) { ClosureFunc(p).swap(*this); }
-  ClosureFunc& operator=(const ClosureFunc& c) { ClosureFunc(c).swap(*this);
-      return *this; }
+  ~ClosureFunc() {
+    if (p_) p_->DelRef();
+  }
+  operator bool() const {
+    return static_cast<bool>(p_);
+  }
+  R operator()() const {
+    return p_->Run();
+  }
+  void swap(ClosureFunc& c) {
+    std::swap(p_, c.p_);
+  }
+  void reset(ClosureType* p = nullptr) {
+    ClosureFunc(p).swap(*this);
+  }
+  ClosureFunc& operator=(const ClosureFunc& c) {
+    ClosureFunc(c).swap(*this);
+    return *this;
+  }
   ClosureFunc& operator=(ClosureFunc&& c) {
-      ClosureFunc(std::move(c)).swap(*this); return *this; }
-private:
-  ClosureType* get() const { return p_; }
-  ClosureType* share() const { if(p_) p_->AddRef(); return p_; }
-  ClosureType* release() { ClosureType* p = get(); p_ = nullptr; return p; }
-  ClosureType* p_; // only PermanentClosure
+    ClosureFunc(std::move(c)).swap(*this);
+    return *this;
+  }
+ private:
+  ClosureType* get() const {
+    return p_;
+  }
+  ClosureType* share() const {
+    if (p_) p_->AddRef();
+    return p_;
+  }
+  ClosureType* release() {
+    ClosureType* p = get();
+    p_ = nullptr;
+    return p;
+  }
+  ClosureType* p_;
 };
 
 // Closure specified for 1 arguments
 template <
   typename R , typename A1>
-class Closure<R (A1)>
-  : public ClosureBase
-{
-public:
+class Closure<R(A1)> : public ClosureBase {
+ public:
   Closure() : ref_count_(1) {}
   Closure(const Closure& c) : ref_count_(1) {}
   virtual R Run(A1 a1) = 0;
-  virtual Closure<R (A1)>* Clone() = 0;
-private:
+  virtual Closure<R(A1)>* Clone() = 0;
+ private:
   void AddRef() {
     assert(ref_count_ > 0);
     ref_count_.fetch_add(1);
@@ -147,19 +163,18 @@ private:
     }
   }
   std::atomic<int64_t> ref_count_;
-  friend class ClosureFunc<R (A1)>;
+  friend class ClosureFunc<R(A1)>;
 };
 
 // forward declaraton for ClosureFunc
 template <typename R, typename A1,
-    typename F> Closure<R (A1)>* NewPermanentClosure(F&&);
+    typename F> Closure<R(A1)>* NewPermanentClosure(F&&);
 
 template <
   typename R , typename A1>
-class ClosureFunc<R (A1)>
-{
-public:
-  typedef Closure<R (A1)> ClosureType;
+class ClosureFunc<R(A1)> {
+ public:
+  typedef Closure<R(A1)> ClosureType;
   ClosureFunc() : p_(nullptr) {}
   ClosureFunc(std::nullptr_t) : p_(nullptr) {}
   template <class F,
@@ -167,38 +182,60 @@ public:
       ClosureFunc>::value>::type>
   ClosureFunc(F&& f) noexcept : ClosureFunc(NewPermanentClosure<R,
       A1>(std::forward<F>(f))) {}
-  explicit ClosureFunc(ClosureType* p) noexcept : p_(p) { assert(!p ||
-      p->IsPermanent()); }
+  explicit ClosureFunc(ClosureType* p) noexcept : p_(p) {
+    assert(!p || p->IsPermanent());
+  }
   ClosureFunc(const ClosureFunc& c) noexcept : ClosureFunc(c.share()) {}
   ClosureFunc(ClosureFunc&& c) noexcept : p_(c.release()) {}
-  ~ClosureFunc() { if (p_) p_->DelRef(); }
-  operator bool() const { return static_cast<bool>(p_); }
-  R operator()(A1 a1) const { return p_->Run(a1); }
-  void swap(ClosureFunc& c) { std::swap(p_, c.p_); }
-  void reset(ClosureType* p = nullptr) { ClosureFunc(p).swap(*this); }
-  ClosureFunc& operator=(const ClosureFunc& c) { ClosureFunc(c).swap(*this);
-      return *this; }
+  ~ClosureFunc() {
+    if (p_) p_->DelRef();
+  }
+  operator bool() const {
+    return static_cast<bool>(p_);
+  }
+  R operator()(A1 a1) const {
+    return p_->Run(a1);
+  }
+  void swap(ClosureFunc& c) {
+    std::swap(p_, c.p_);
+  }
+  void reset(ClosureType* p = nullptr) {
+    ClosureFunc(p).swap(*this);
+  }
+  ClosureFunc& operator=(const ClosureFunc& c) {
+    ClosureFunc(c).swap(*this);
+    return *this;
+  }
   ClosureFunc& operator=(ClosureFunc&& c) {
-      ClosureFunc(std::move(c)).swap(*this); return *this; }
-private:
-  ClosureType* get() const { return p_; }
-  ClosureType* share() const { if(p_) p_->AddRef(); return p_; }
-  ClosureType* release() { ClosureType* p = get(); p_ = nullptr; return p; }
-  ClosureType* p_; // only PermanentClosure
+    ClosureFunc(std::move(c)).swap(*this);
+    return *this;
+  }
+ private:
+  ClosureType* get() const {
+    return p_;
+  }
+  ClosureType* share() const {
+    if (p_) p_->AddRef();
+    return p_;
+  }
+  ClosureType* release() {
+    ClosureType* p = get();
+    p_ = nullptr;
+    return p;
+  }
+  ClosureType* p_;
 };
 
 // Closure specified for 2 arguments
 template <
   typename R , typename A1, typename A2>
-class Closure<R (A1, A2)>
-  : public ClosureBase
-{
-public:
+class Closure<R(A1, A2)> : public ClosureBase {
+ public:
   Closure() : ref_count_(1) {}
   Closure(const Closure& c) : ref_count_(1) {}
   virtual R Run(A1 a1, A2 a2) = 0;
-  virtual Closure<R (A1, A2)>* Clone() = 0;
-private:
+  virtual Closure<R(A1, A2)>* Clone() = 0;
+ private:
   void AddRef() {
     assert(ref_count_ > 0);
     ref_count_.fetch_add(1);
@@ -210,19 +247,18 @@ private:
     }
   }
   std::atomic<int64_t> ref_count_;
-  friend class ClosureFunc<R (A1, A2)>;
+  friend class ClosureFunc<R(A1, A2)>;
 };
 
 // forward declaraton for ClosureFunc
-template <typename R, typename A1, typename A2, typename F> Closure<R (A1,
+template <typename R, typename A1, typename A2, typename F> Closure<R(A1,
     A2)>* NewPermanentClosure(F&&);
 
 template <
   typename R , typename A1, typename A2>
-class ClosureFunc<R (A1, A2)>
-{
-public:
-  typedef Closure<R (A1, A2)> ClosureType;
+class ClosureFunc<R(A1, A2)> {
+ public:
+  typedef Closure<R(A1, A2)> ClosureType;
   ClosureFunc() : p_(nullptr) {}
   ClosureFunc(std::nullptr_t) : p_(nullptr) {}
   template <class F,
@@ -230,38 +266,60 @@ public:
       ClosureFunc>::value>::type>
   ClosureFunc(F&& f) noexcept : ClosureFunc(NewPermanentClosure<R, A1,
       A2>(std::forward<F>(f))) {}
-  explicit ClosureFunc(ClosureType* p) noexcept : p_(p) { assert(!p ||
-      p->IsPermanent()); }
+  explicit ClosureFunc(ClosureType* p) noexcept : p_(p) {
+    assert(!p || p->IsPermanent());
+  }
   ClosureFunc(const ClosureFunc& c) noexcept : ClosureFunc(c.share()) {}
   ClosureFunc(ClosureFunc&& c) noexcept : p_(c.release()) {}
-  ~ClosureFunc() { if (p_) p_->DelRef(); }
-  operator bool() const { return static_cast<bool>(p_); }
-  R operator()(A1 a1, A2 a2) const { return p_->Run(a1, a2); }
-  void swap(ClosureFunc& c) { std::swap(p_, c.p_); }
-  void reset(ClosureType* p = nullptr) { ClosureFunc(p).swap(*this); }
-  ClosureFunc& operator=(const ClosureFunc& c) { ClosureFunc(c).swap(*this);
-      return *this; }
+  ~ClosureFunc() {
+    if (p_) p_->DelRef();
+  }
+  operator bool() const {
+    return static_cast<bool>(p_);
+  }
+  R operator()(A1 a1, A2 a2) const {
+    return p_->Run(a1, a2);
+  }
+  void swap(ClosureFunc& c) {
+    std::swap(p_, c.p_);
+  }
+  void reset(ClosureType* p = nullptr) {
+    ClosureFunc(p).swap(*this);
+  }
+  ClosureFunc& operator=(const ClosureFunc& c) {
+    ClosureFunc(c).swap(*this);
+    return *this;
+  }
   ClosureFunc& operator=(ClosureFunc&& c) {
-      ClosureFunc(std::move(c)).swap(*this); return *this; }
-private:
-  ClosureType* get() const { return p_; }
-  ClosureType* share() const { if(p_) p_->AddRef(); return p_; }
-  ClosureType* release() { ClosureType* p = get(); p_ = nullptr; return p; }
-  ClosureType* p_; // only PermanentClosure
+    ClosureFunc(std::move(c)).swap(*this);
+    return *this;
+  }
+ private:
+  ClosureType* get() const {
+    return p_;
+  }
+  ClosureType* share() const {
+    if (p_) p_->AddRef();
+    return p_;
+  }
+  ClosureType* release() {
+    ClosureType* p = get();
+    p_ = nullptr;
+    return p;
+  }
+  ClosureType* p_;
 };
 
 // Closure specified for 3 arguments
 template <
   typename R , typename A1, typename A2, typename A3>
-class Closure<R (A1, A2, A3)>
-  : public ClosureBase
-{
-public:
+class Closure<R(A1, A2, A3)> : public ClosureBase {
+ public:
   Closure() : ref_count_(1) {}
   Closure(const Closure& c) : ref_count_(1) {}
   virtual R Run(A1 a1, A2 a2, A3 a3) = 0;
-  virtual Closure<R (A1, A2, A3)>* Clone() = 0;
-private:
+  virtual Closure<R(A1, A2, A3)>* Clone() = 0;
+ private:
   void AddRef() {
     assert(ref_count_ > 0);
     ref_count_.fetch_add(1);
@@ -273,19 +331,18 @@ private:
     }
   }
   std::atomic<int64_t> ref_count_;
-  friend class ClosureFunc<R (A1, A2, A3)>;
+  friend class ClosureFunc<R(A1, A2, A3)>;
 };
 
 // forward declaraton for ClosureFunc
 template <typename R, typename A1, typename A2, typename A3,
-    typename F> Closure<R (A1, A2, A3)>* NewPermanentClosure(F&&);
+    typename F> Closure<R(A1, A2, A3)>* NewPermanentClosure(F&&);
 
 template <
   typename R , typename A1, typename A2, typename A3>
-class ClosureFunc<R (A1, A2, A3)>
-{
-public:
-  typedef Closure<R (A1, A2, A3)> ClosureType;
+class ClosureFunc<R(A1, A2, A3)> {
+ public:
+  typedef Closure<R(A1, A2, A3)> ClosureType;
   ClosureFunc() : p_(nullptr) {}
   ClosureFunc(std::nullptr_t) : p_(nullptr) {}
   template <class F,
@@ -293,38 +350,60 @@ public:
       ClosureFunc>::value>::type>
   ClosureFunc(F&& f) noexcept : ClosureFunc(NewPermanentClosure<R, A1, A2,
       A3>(std::forward<F>(f))) {}
-  explicit ClosureFunc(ClosureType* p) noexcept : p_(p) { assert(!p ||
-      p->IsPermanent()); }
+  explicit ClosureFunc(ClosureType* p) noexcept : p_(p) {
+    assert(!p || p->IsPermanent());
+  }
   ClosureFunc(const ClosureFunc& c) noexcept : ClosureFunc(c.share()) {}
   ClosureFunc(ClosureFunc&& c) noexcept : p_(c.release()) {}
-  ~ClosureFunc() { if (p_) p_->DelRef(); }
-  operator bool() const { return static_cast<bool>(p_); }
-  R operator()(A1 a1, A2 a2, A3 a3) const { return p_->Run(a1, a2, a3); }
-  void swap(ClosureFunc& c) { std::swap(p_, c.p_); }
-  void reset(ClosureType* p = nullptr) { ClosureFunc(p).swap(*this); }
-  ClosureFunc& operator=(const ClosureFunc& c) { ClosureFunc(c).swap(*this);
-      return *this; }
+  ~ClosureFunc() {
+    if (p_) p_->DelRef();
+  }
+  operator bool() const {
+    return static_cast<bool>(p_);
+  }
+  R operator()(A1 a1, A2 a2, A3 a3) const {
+    return p_->Run(a1, a2, a3);
+  }
+  void swap(ClosureFunc& c) {
+    std::swap(p_, c.p_);
+  }
+  void reset(ClosureType* p = nullptr) {
+    ClosureFunc(p).swap(*this);
+  }
+  ClosureFunc& operator=(const ClosureFunc& c) {
+    ClosureFunc(c).swap(*this);
+    return *this;
+  }
   ClosureFunc& operator=(ClosureFunc&& c) {
-      ClosureFunc(std::move(c)).swap(*this); return *this; }
-private:
-  ClosureType* get() const { return p_; }
-  ClosureType* share() const { if(p_) p_->AddRef(); return p_; }
-  ClosureType* release() { ClosureType* p = get(); p_ = nullptr; return p; }
-  ClosureType* p_; // only PermanentClosure
+    ClosureFunc(std::move(c)).swap(*this);
+    return *this;
+  }
+ private:
+  ClosureType* get() const {
+    return p_;
+  }
+  ClosureType* share() const {
+    if (p_) p_->AddRef();
+    return p_;
+  }
+  ClosureType* release() {
+    ClosureType* p = get();
+    p_ = nullptr;
+    return p;
+  }
+  ClosureType* p_;
 };
 
 // Closure specified for 4 arguments
 template <
   typename R , typename A1, typename A2, typename A3, typename A4>
-class Closure<R (A1, A2, A3, A4)>
-  : public ClosureBase
-{
-public:
+class Closure<R(A1, A2, A3, A4)> : public ClosureBase {
+ public:
   Closure() : ref_count_(1) {}
   Closure(const Closure& c) : ref_count_(1) {}
   virtual R Run(A1 a1, A2 a2, A3 a3, A4 a4) = 0;
-  virtual Closure<R (A1, A2, A3, A4)>* Clone() = 0;
-private:
+  virtual Closure<R(A1, A2, A3, A4)>* Clone() = 0;
+ private:
   void AddRef() {
     assert(ref_count_ > 0);
     ref_count_.fetch_add(1);
@@ -336,19 +415,18 @@ private:
     }
   }
   std::atomic<int64_t> ref_count_;
-  friend class ClosureFunc<R (A1, A2, A3, A4)>;
+  friend class ClosureFunc<R(A1, A2, A3, A4)>;
 };
 
 // forward declaraton for ClosureFunc
 template <typename R, typename A1, typename A2, typename A3, typename A4,
-    typename F> Closure<R (A1, A2, A3, A4)>* NewPermanentClosure(F&&);
+    typename F> Closure<R(A1, A2, A3, A4)>* NewPermanentClosure(F&&);
 
 template <
   typename R , typename A1, typename A2, typename A3, typename A4>
-class ClosureFunc<R (A1, A2, A3, A4)>
-{
-public:
-  typedef Closure<R (A1, A2, A3, A4)> ClosureType;
+class ClosureFunc<R(A1, A2, A3, A4)> {
+ public:
+  typedef Closure<R(A1, A2, A3, A4)> ClosureType;
   ClosureFunc() : p_(nullptr) {}
   ClosureFunc(std::nullptr_t) : p_(nullptr) {}
   template <class F,
@@ -356,39 +434,60 @@ public:
       ClosureFunc>::value>::type>
   ClosureFunc(F&& f) noexcept : ClosureFunc(NewPermanentClosure<R, A1, A2, A3,
       A4>(std::forward<F>(f))) {}
-  explicit ClosureFunc(ClosureType* p) noexcept : p_(p) { assert(!p ||
-      p->IsPermanent()); }
+  explicit ClosureFunc(ClosureType* p) noexcept : p_(p) {
+    assert(!p || p->IsPermanent());
+  }
   ClosureFunc(const ClosureFunc& c) noexcept : ClosureFunc(c.share()) {}
   ClosureFunc(ClosureFunc&& c) noexcept : p_(c.release()) {}
-  ~ClosureFunc() { if (p_) p_->DelRef(); }
-  operator bool() const { return static_cast<bool>(p_); }
-  R operator()(A1 a1, A2 a2, A3 a3, A4 a4) const { return p_->Run(a1, a2, a3,
-      a4); }
-  void swap(ClosureFunc& c) { std::swap(p_, c.p_); }
-  void reset(ClosureType* p = nullptr) { ClosureFunc(p).swap(*this); }
-  ClosureFunc& operator=(const ClosureFunc& c) { ClosureFunc(c).swap(*this);
-      return *this; }
+  ~ClosureFunc() {
+    if (p_) p_->DelRef();
+  }
+  operator bool() const {
+    return static_cast<bool>(p_);
+  }
+  R operator()(A1 a1, A2 a2, A3 a3, A4 a4) const {
+    return p_->Run(a1, a2, a3, a4);
+  }
+  void swap(ClosureFunc& c) {
+    std::swap(p_, c.p_);
+  }
+  void reset(ClosureType* p = nullptr) {
+    ClosureFunc(p).swap(*this);
+  }
+  ClosureFunc& operator=(const ClosureFunc& c) {
+    ClosureFunc(c).swap(*this);
+    return *this;
+  }
   ClosureFunc& operator=(ClosureFunc&& c) {
-      ClosureFunc(std::move(c)).swap(*this); return *this; }
-private:
-  ClosureType* get() const { return p_; }
-  ClosureType* share() const { if(p_) p_->AddRef(); return p_; }
-  ClosureType* release() { ClosureType* p = get(); p_ = nullptr; return p; }
-  ClosureType* p_; // only PermanentClosure
+    ClosureFunc(std::move(c)).swap(*this);
+    return *this;
+  }
+ private:
+  ClosureType* get() const {
+    return p_;
+  }
+  ClosureType* share() const {
+    if (p_) p_->AddRef();
+    return p_;
+  }
+  ClosureType* release() {
+    ClosureType* p = get();
+    p_ = nullptr;
+    return p;
+  }
+  ClosureType* p_;
 };
 
 // Closure specified for 5 arguments
 template <
   typename R , typename A1, typename A2, typename A3, typename A4, typename A5>
-class Closure<R (A1, A2, A3, A4, A5)>
-  : public ClosureBase
-{
-public:
+class Closure<R(A1, A2, A3, A4, A5)> : public ClosureBase {
+ public:
   Closure() : ref_count_(1) {}
   Closure(const Closure& c) : ref_count_(1) {}
   virtual R Run(A1 a1, A2 a2, A3 a3, A4 a4, A5 a5) = 0;
-  virtual Closure<R (A1, A2, A3, A4, A5)>* Clone() = 0;
-private:
+  virtual Closure<R(A1, A2, A3, A4, A5)>* Clone() = 0;
+ private:
   void AddRef() {
     assert(ref_count_ > 0);
     ref_count_.fetch_add(1);
@@ -400,20 +499,19 @@ private:
     }
   }
   std::atomic<int64_t> ref_count_;
-  friend class ClosureFunc<R (A1, A2, A3, A4, A5)>;
+  friend class ClosureFunc<R(A1, A2, A3, A4, A5)>;
 };
 
 // forward declaraton for ClosureFunc
 template <typename R, typename A1, typename A2, typename A3, typename A4,
-    typename A5, typename F> Closure<R (A1, A2, A3, A4,
+    typename A5, typename F> Closure<R(A1, A2, A3, A4,
     A5)>* NewPermanentClosure(F&&);
 
 template <
   typename R , typename A1, typename A2, typename A3, typename A4, typename A5>
-class ClosureFunc<R (A1, A2, A3, A4, A5)>
-{
-public:
-  typedef Closure<R (A1, A2, A3, A4, A5)> ClosureType;
+class ClosureFunc<R(A1, A2, A3, A4, A5)> {
+ public:
+  typedef Closure<R(A1, A2, A3, A4, A5)> ClosureType;
   ClosureFunc() : p_(nullptr) {}
   ClosureFunc(std::nullptr_t) : p_(nullptr) {}
   template <class F,
@@ -421,40 +519,61 @@ public:
       ClosureFunc>::value>::type>
   ClosureFunc(F&& f) noexcept : ClosureFunc(NewPermanentClosure<R, A1, A2, A3,
       A4, A5>(std::forward<F>(f))) {}
-  explicit ClosureFunc(ClosureType* p) noexcept : p_(p) { assert(!p ||
-      p->IsPermanent()); }
+  explicit ClosureFunc(ClosureType* p) noexcept : p_(p) {
+    assert(!p || p->IsPermanent());
+  }
   ClosureFunc(const ClosureFunc& c) noexcept : ClosureFunc(c.share()) {}
   ClosureFunc(ClosureFunc&& c) noexcept : p_(c.release()) {}
-  ~ClosureFunc() { if (p_) p_->DelRef(); }
-  operator bool() const { return static_cast<bool>(p_); }
-  R operator()(A1 a1, A2 a2, A3 a3, A4 a4, A5 a5) const { return p_->Run(a1,
-      a2, a3, a4, a5); }
-  void swap(ClosureFunc& c) { std::swap(p_, c.p_); }
-  void reset(ClosureType* p = nullptr) { ClosureFunc(p).swap(*this); }
-  ClosureFunc& operator=(const ClosureFunc& c) { ClosureFunc(c).swap(*this);
-      return *this; }
+  ~ClosureFunc() {
+    if (p_) p_->DelRef();
+  }
+  operator bool() const {
+    return static_cast<bool>(p_);
+  }
+  R operator()(A1 a1, A2 a2, A3 a3, A4 a4, A5 a5) const {
+    return p_->Run(a1, a2, a3, a4, a5);
+  }
+  void swap(ClosureFunc& c) {
+    std::swap(p_, c.p_);
+  }
+  void reset(ClosureType* p = nullptr) {
+    ClosureFunc(p).swap(*this);
+  }
+  ClosureFunc& operator=(const ClosureFunc& c) {
+    ClosureFunc(c).swap(*this);
+    return *this;
+  }
   ClosureFunc& operator=(ClosureFunc&& c) {
-      ClosureFunc(std::move(c)).swap(*this); return *this; }
-private:
-  ClosureType* get() const { return p_; }
-  ClosureType* share() const { if(p_) p_->AddRef(); return p_; }
-  ClosureType* release() { ClosureType* p = get(); p_ = nullptr; return p; }
-  ClosureType* p_; // only PermanentClosure
+    ClosureFunc(std::move(c)).swap(*this);
+    return *this;
+  }
+ private:
+  ClosureType* get() const {
+    return p_;
+  }
+  ClosureType* share() const {
+    if (p_) p_->AddRef();
+    return p_;
+  }
+  ClosureType* release() {
+    ClosureType* p = get();
+    p_ = nullptr;
+    return p;
+  }
+  ClosureType* p_;
 };
 
 // Closure specified for 6 arguments
 template <
   typename R , typename A1, typename A2, typename A3, typename A4, typename A5,
       typename A6>
-class Closure<R (A1, A2, A3, A4, A5, A6)>
-  : public ClosureBase
-{
-public:
+class Closure<R(A1, A2, A3, A4, A5, A6)> : public ClosureBase {
+ public:
   Closure() : ref_count_(1) {}
   Closure(const Closure& c) : ref_count_(1) {}
   virtual R Run(A1 a1, A2 a2, A3 a3, A4 a4, A5 a5, A6 a6) = 0;
-  virtual Closure<R (A1, A2, A3, A4, A5, A6)>* Clone() = 0;
-private:
+  virtual Closure<R(A1, A2, A3, A4, A5, A6)>* Clone() = 0;
+ private:
   void AddRef() {
     assert(ref_count_ > 0);
     ref_count_.fetch_add(1);
@@ -466,21 +585,20 @@ private:
     }
   }
   std::atomic<int64_t> ref_count_;
-  friend class ClosureFunc<R (A1, A2, A3, A4, A5, A6)>;
+  friend class ClosureFunc<R(A1, A2, A3, A4, A5, A6)>;
 };
 
 // forward declaraton for ClosureFunc
 template <typename R, typename A1, typename A2, typename A3, typename A4,
-    typename A5, typename A6, typename F> Closure<R (A1, A2, A3, A4, A5,
+    typename A5, typename A6, typename F> Closure<R(A1, A2, A3, A4, A5,
     A6)>* NewPermanentClosure(F&&);
 
 template <
   typename R , typename A1, typename A2, typename A3, typename A4, typename A5,
       typename A6>
-class ClosureFunc<R (A1, A2, A3, A4, A5, A6)>
-{
-public:
-  typedef Closure<R (A1, A2, A3, A4, A5, A6)> ClosureType;
+class ClosureFunc<R(A1, A2, A3, A4, A5, A6)> {
+ public:
+  typedef Closure<R(A1, A2, A3, A4, A5, A6)> ClosureType;
   ClosureFunc() : p_(nullptr) {}
   ClosureFunc(std::nullptr_t) : p_(nullptr) {}
   template <class F,
@@ -488,45 +606,65 @@ public:
       ClosureFunc>::value>::type>
   ClosureFunc(F&& f) noexcept : ClosureFunc(NewPermanentClosure<R, A1, A2, A3,
       A4, A5, A6>(std::forward<F>(f))) {}
-  explicit ClosureFunc(ClosureType* p) noexcept : p_(p) { assert(!p ||
-      p->IsPermanent()); }
+  explicit ClosureFunc(ClosureType* p) noexcept : p_(p) {
+    assert(!p || p->IsPermanent());
+  }
   ClosureFunc(const ClosureFunc& c) noexcept : ClosureFunc(c.share()) {}
   ClosureFunc(ClosureFunc&& c) noexcept : p_(c.release()) {}
-  ~ClosureFunc() { if (p_) p_->DelRef(); }
-  operator bool() const { return static_cast<bool>(p_); }
-  R operator()(A1 a1, A2 a2, A3 a3, A4 a4, A5 a5,
-      A6 a6) const { return p_->Run(a1, a2, a3, a4, a5, a6); }
-  void swap(ClosureFunc& c) { std::swap(p_, c.p_); }
-  void reset(ClosureType* p = nullptr) { ClosureFunc(p).swap(*this); }
-  ClosureFunc& operator=(const ClosureFunc& c) { ClosureFunc(c).swap(*this);
-      return *this; }
+  ~ClosureFunc() {
+    if (p_) p_->DelRef();
+  }
+  operator bool() const {
+    return static_cast<bool>(p_);
+  }
+  R operator()(A1 a1, A2 a2, A3 a3, A4 a4, A5 a5, A6 a6) const {
+    return p_->Run(a1, a2, a3, a4, a5, a6);
+  }
+  void swap(ClosureFunc& c) {
+    std::swap(p_, c.p_);
+  }
+  void reset(ClosureType* p = nullptr) {
+    ClosureFunc(p).swap(*this);
+  }
+  ClosureFunc& operator=(const ClosureFunc& c) {
+    ClosureFunc(c).swap(*this);
+    return *this;
+  }
   ClosureFunc& operator=(ClosureFunc&& c) {
-      ClosureFunc(std::move(c)).swap(*this); return *this; }
-private:
-  ClosureType* get() const { return p_; }
-  ClosureType* share() const { if(p_) p_->AddRef(); return p_; }
-  ClosureType* release() { ClosureType* p = get(); p_ = nullptr; return p; }
-  ClosureType* p_; // only PermanentClosure
+    ClosureFunc(std::move(c)).swap(*this);
+    return *this;
+  }
+ private:
+  ClosureType* get() const {
+    return p_;
+  }
+  ClosureType* share() const {
+    if (p_) p_->AddRef();
+    return p_;
+  }
+  ClosureType* release() {
+    ClosureType* p = get();
+    p_ = nullptr;
+    return p;
+  }
+  ClosureType* p_;
 };
 
 // Closure deleter
 template <bool Enabled, typename T>
-class ConditionalAutoDeleter
-{
-public:
+class ConditionalAutoDeleter {
+ public:
   explicit ConditionalAutoDeleter(T* p)
-    : p_(p)
-  {
+      : p_(p) {
   }
-  ~ConditionalAutoDeleter()
-  {
+  ~ConditionalAutoDeleter() {
     if (Enabled)
       delete p_;
   }
-private:
+ private:
   ConditionalAutoDeleter(const ConditionalAutoDeleter&);
   ConditionalAutoDeleter& operator=(const ConditionalAutoDeleter&);
-private:
+ private:
   T* p_;
 };
 
@@ -539,9 +677,9 @@ template <
   typename R,
   typename Class,
   typename MethodClass >
-class MethodClosure_Arg0_Bind0 : public Closure<R ()> {
-  typedef R (MethodClass::*MethodType)();
-public:
+class MethodClosure_Arg0_Bind0 : public Closure<R()> {
+ public:
+  typedef R(MethodClass::*MethodType)();
   MethodClosure_Arg0_Bind0(Class *object, MethodType method):
     object_(object), method_(method) {}
   virtual R Run() {
@@ -549,32 +687,32 @@ public:
         MethodClosure_Arg0_Bind0> self_deleter(this);
     return (object_->*method_)();
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new MethodClosure_Arg0_Bind0(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
 };
 
 template <typename R, typename Class, typename MethodClass>
-Closure<R ()>*
-NewClosure(Class *object, R (MethodClass::*method)()) {
+Closure<R()>*
+NewClosure(Class *object, R(MethodClass::*method)()) {
   return new MethodClosure_Arg0_Bind0<false, R, Class, MethodClass>(
     object, method);
 }
 
 template <typename R, typename Class, typename MethodClass>
-Closure<R ()>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)()) {
+Closure<R()>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)()) {
   return new MethodClosure_Arg0_Bind0<true, R, Class, MethodClass>(
     object, method);
 }
 
 template <typename R, typename Class, typename MethodClass>
-ClosureFunc<R ()>
-BindClosure(Class *object, R (MethodClass::*method)()) {
+ClosureFunc<R()>
+BindClosure(Class *object, R(MethodClass::*method)()) {
   return ClosureFunc<R ()>(NewPermanentClosure(object, method));
 }
 
@@ -585,9 +723,9 @@ BindClosure(Class *object, R (MethodClass::*method)()) {
 template <
   bool Permanent,
   typename R>
-class FunctionClosure_Arg0_Bind0 : public Closure<R ()> {
-  typedef R (*FunctionType)();
-public:
+class FunctionClosure_Arg0_Bind0 : public Closure<R()> {
+ public:
+  typedef R(*FunctionType)();
   FunctionClosure_Arg0_Bind0(FunctionType function):
     function_(function) {}
   virtual R Run() {
@@ -595,30 +733,30 @@ public:
         FunctionClosure_Arg0_Bind0> self_deleter(this);
     return function_();
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new FunctionClosure_Arg0_Bind0(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
 };
 
 template <typename R>
-Closure<R ()>*
-NewClosure(R (*function)()) {
+Closure<R()>*
+NewClosure(R(*function)()) {
   return new FunctionClosure_Arg0_Bind0<false, R>(function);
 }
 
 template <typename R>
-Closure<R ()>*
-NewPermanentClosure(R (*function)()) {
+Closure<R()>*
+NewPermanentClosure(R(*function)()) {
   return new FunctionClosure_Arg0_Bind0<true, R>(function);
 }
 
 template <typename R>
-ClosureFunc<R ()>
-BindClosure(R (*function)()) {
-  return ClosureFunc<R ()>(NewPermanentClosure(function));
+ClosureFunc<R()>
+BindClosure(R(*function)()) {
+  return ClosureFunc<R()>(NewPermanentClosure(function));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -628,7 +766,7 @@ BindClosure(R (*function)()) {
 template <
   bool Permanent, typename F,
   typename R>
-class FunctorClosure_Arg0_Bind0 : public Closure<R ()> {
+class FunctorClosure_Arg0_Bind0 : public Closure<R()> {
 public:
   explicit FunctorClosure_Arg0_Bind0(const F& functor)
     : functor_(functor) {}
@@ -639,7 +777,7 @@ public:
         FunctorClosure_Arg0_Bind0> self_deleter(this);
     return functor_();
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new FunctorClosure_Arg0_Bind0(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -648,23 +786,23 @@ private:
 };
 
 template <typename R, typename F>
-Closure<R ()>*
+Closure<R()>*
 NewClosure(F&& functor) {
   return new FunctorClosure_Arg0_Bind0<false, typename std::decay<F>::type, R>(
     std::forward<F>(functor));
 }
 
 template <typename R, typename F>
-Closure<R ()>*
+Closure<R()>*
 NewPermanentClosure(F&& functor) {
   return new FunctorClosure_Arg0_Bind0<true, typename std::decay<F>::type, R>(
     std::forward<F>(functor));
 }
 
 template <typename R, typename F>
-ClosureFunc<R ()>
+ClosureFunc<R()>
 BindClosure(F&& functor) {
-  return ClosureFunc<R ()>(NewPermanentClosure<R>(std::forward<F>(functor)));
+  return ClosureFunc<R()>(NewPermanentClosure<R>(std::forward<F>(functor)));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -676,9 +814,9 @@ template <
   typename R,
   typename Class,
   typename MethodClass, typename Arg1 , typename PreArg1>
-class MethodClosure_Arg0_Bind1 : public Closure<R ()> {
-  typedef R (MethodClass::*MethodType)(Arg1);
-public:
+class MethodClosure_Arg0_Bind1 : public Closure<R()> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1);
   MethodClosure_Arg0_Bind1(Class *object, MethodType method, PreArg1 pa1):
     object_(object), method_(method), pa_1_(pa1) {}
   virtual R Run() {
@@ -686,11 +824,11 @@ public:
         MethodClosure_Arg0_Bind1> self_deleter(this);
     return (object_->*method_)(pa_1_);
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new MethodClosure_Arg0_Bind1(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -698,8 +836,8 @@ private:
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename PreArg1>
-Closure<R ()>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1), PreArg1 pa1) {
+Closure<R()>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1), PreArg1 pa1) {
   return new MethodClosure_Arg0_Bind1<false, R, Class, MethodClass, Arg1,
       PreArg1>(
     object, method, pa1);
@@ -707,9 +845,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1), PreArg1 pa1) {
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename PreArg1>
-Closure<R ()>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1),
-    PreArg1 pa1) {
+Closure<R()>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1), PreArg1 pa1) {
   return new MethodClosure_Arg0_Bind1<true, R, Class, MethodClass, Arg1,
       PreArg1>(
     object, method, pa1);
@@ -717,8 +854,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1),
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename PreArg1>
-ClosureFunc<R ()>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1), PreArg1 pa1) {
+ClosureFunc<R()>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1), PreArg1 pa1) {
   return ClosureFunc<R ()>(NewPermanentClosure(object, method, pa1));
 }
 
@@ -729,9 +866,9 @@ BindClosure(Class *object, R (MethodClass::*method)(Arg1), PreArg1 pa1) {
 template <
   bool Permanent,
   typename R, typename Arg1, typename PreArg1>
-class FunctionClosure_Arg0_Bind1 : public Closure<R ()> {
-  typedef R (*FunctionType)(Arg1);
-public:
+class FunctionClosure_Arg0_Bind1 : public Closure<R()> {
+ public:
+  typedef R(*FunctionType)(Arg1);
   FunctionClosure_Arg0_Bind1(FunctionType function, PreArg1 pa1):
     function_(function), pa_1_(pa1) {}
   virtual R Run() {
@@ -739,31 +876,31 @@ public:
         FunctionClosure_Arg0_Bind1> self_deleter(this);
     return function_(pa_1_);
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new FunctionClosure_Arg0_Bind1(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
 };
 
 template <typename R, typename Arg1, typename PreArg1>
-Closure<R ()>*
-NewClosure(R (*function)(Arg1), PreArg1 pa1) {
+Closure<R()>*
+NewClosure(R(*function)(Arg1), PreArg1 pa1) {
   return new FunctionClosure_Arg0_Bind1<false, R, Arg1, PreArg1>(function, pa1);
 }
 
 template <typename R, typename Arg1, typename PreArg1>
-Closure<R ()>*
-NewPermanentClosure(R (*function)(Arg1), PreArg1 pa1) {
+Closure<R()>*
+NewPermanentClosure(R(*function)(Arg1), PreArg1 pa1) {
   return new FunctionClosure_Arg0_Bind1<true, R, Arg1, PreArg1>(function, pa1);
 }
 
 template <typename R, typename Arg1, typename PreArg1>
-ClosureFunc<R ()>
-BindClosure(R (*function)(Arg1), PreArg1 pa1) {
-  return ClosureFunc<R ()>(NewPermanentClosure(function, pa1));
+ClosureFunc<R()>
+BindClosure(R(*function)(Arg1), PreArg1 pa1) {
+  return ClosureFunc<R()>(NewPermanentClosure(function, pa1));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -773,7 +910,7 @@ BindClosure(R (*function)(Arg1), PreArg1 pa1) {
 template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename PreArg1>
-class FunctorClosure_Arg0_Bind1 : public Closure<R ()> {
+class FunctorClosure_Arg0_Bind1 : public Closure<R()> {
 public:
   explicit FunctorClosure_Arg0_Bind1(const F& functor, PreArg1 pa1)
     : functor_(functor), pa_1_(pa1) {}
@@ -784,7 +921,7 @@ public:
         FunctorClosure_Arg0_Bind1> self_deleter(this);
     return functor_(pa_1_);
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new FunctorClosure_Arg0_Bind1(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -794,7 +931,7 @@ private:
 };
 
 template <typename R, typename Arg1, typename PreArg1, typename F>
-Closure<R ()>*
+Closure<R()>*
 NewClosure(F&& functor, PreArg1 pa1) {
   return new FunctorClosure_Arg0_Bind1<false, typename std::decay<F>::type, R,
       Arg1, PreArg1>(
@@ -802,7 +939,7 @@ NewClosure(F&& functor, PreArg1 pa1) {
 }
 
 template <typename R, typename Arg1, typename PreArg1, typename F>
-Closure<R ()>*
+Closure<R()>*
 NewPermanentClosure(F&& functor, PreArg1 pa1) {
   return new FunctorClosure_Arg0_Bind1<true, typename std::decay<F>::type, R,
       Arg1, PreArg1>(
@@ -810,9 +947,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1) {
 }
 
 template <typename R, typename Arg1, typename PreArg1, typename F>
-ClosureFunc<R ()>
+ClosureFunc<R()>
 BindClosure(F&& functor, PreArg1 pa1) {
-  return ClosureFunc<R ()>(NewPermanentClosure<R, Arg1,
+  return ClosureFunc<R()>(NewPermanentClosure<R, Arg1,
       PreArg1>(std::forward<F>(functor), pa1));
 }
 
@@ -826,9 +963,9 @@ template <
   typename Class,
   typename MethodClass, typename Arg1, typename Arg2 , typename PreArg1,
       typename PreArg2>
-class MethodClosure_Arg0_Bind2 : public Closure<R ()> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2);
-public:
+class MethodClosure_Arg0_Bind2 : public Closure<R()> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2);
   MethodClosure_Arg0_Bind2(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2) {}
@@ -837,11 +974,11 @@ public:
         MethodClosure_Arg0_Bind2> self_deleter(this);
     return (object_->*method_)(pa_1_, pa_2_);
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new MethodClosure_Arg0_Bind2(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -850,8 +987,8 @@ private:
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename PreArg1, typename PreArg2>
-Closure<R ()>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2), PreArg1 pa1,
+Closure<R()>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2), PreArg1 pa1,
     PreArg2 pa2) {
   return new MethodClosure_Arg0_Bind2<false, R, Class, MethodClass, Arg1, Arg2,
       PreArg1, PreArg2>(
@@ -860,8 +997,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2), PreArg1 pa1,
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename PreArg1, typename PreArg2>
-Closure<R ()>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2),
+Closure<R()>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2),
     PreArg1 pa1, PreArg2 pa2) {
   return new MethodClosure_Arg0_Bind2<true, R, Class, MethodClass, Arg1, Arg2,
       PreArg1, PreArg2>(
@@ -870,8 +1007,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2),
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename PreArg1, typename PreArg2>
-ClosureFunc<R ()>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2), PreArg1 pa1,
+ClosureFunc<R()>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2), PreArg1 pa1,
     PreArg2 pa2) {
   return ClosureFunc<R ()>(NewPermanentClosure(object, method, pa1, pa2));
 }
@@ -883,9 +1020,9 @@ BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2), PreArg1 pa1,
 template <
   bool Permanent,
   typename R, typename Arg1, typename Arg2, typename PreArg1, typename PreArg2>
-class FunctionClosure_Arg0_Bind2 : public Closure<R ()> {
-  typedef R (*FunctionType)(Arg1, Arg2);
-public:
+class FunctionClosure_Arg0_Bind2 : public Closure<R()> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2);
   FunctionClosure_Arg0_Bind2(FunctionType function, PreArg1 pa1, PreArg2 pa2):
     function_(function), pa_1_(pa1), pa_2_(pa2) {}
   virtual R Run() {
@@ -893,11 +1030,11 @@ public:
         FunctionClosure_Arg0_Bind2> self_deleter(this);
     return function_(pa_1_, pa_2_);
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new FunctionClosure_Arg0_Bind2(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -905,25 +1042,25 @@ private:
 
 template <typename R, typename Arg1, typename Arg2, typename PreArg1,
     typename PreArg2>
-Closure<R ()>*
-NewClosure(R (*function)(Arg1, Arg2), PreArg1 pa1, PreArg2 pa2) {
+Closure<R()>*
+NewClosure(R(*function)(Arg1, Arg2), PreArg1 pa1, PreArg2 pa2) {
   return new FunctionClosure_Arg0_Bind2<false, R, Arg1, Arg2, PreArg1,
       PreArg2>(function, pa1, pa2);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename PreArg1,
     typename PreArg2>
-Closure<R ()>*
-NewPermanentClosure(R (*function)(Arg1, Arg2), PreArg1 pa1, PreArg2 pa2) {
+Closure<R()>*
+NewPermanentClosure(R(*function)(Arg1, Arg2), PreArg1 pa1, PreArg2 pa2) {
   return new FunctionClosure_Arg0_Bind2<true, R, Arg1, Arg2, PreArg1,
       PreArg2>(function, pa1, pa2);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename PreArg1,
     typename PreArg2>
-ClosureFunc<R ()>
-BindClosure(R (*function)(Arg1, Arg2), PreArg1 pa1, PreArg2 pa2) {
-  return ClosureFunc<R ()>(NewPermanentClosure(function, pa1, pa2));
+ClosureFunc<R()>
+BindClosure(R(*function)(Arg1, Arg2), PreArg1 pa1, PreArg2 pa2) {
+  return ClosureFunc<R()>(NewPermanentClosure(function, pa1, pa2));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -933,7 +1070,7 @@ BindClosure(R (*function)(Arg1, Arg2), PreArg1 pa1, PreArg2 pa2) {
 template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename PreArg1, typename PreArg2>
-class FunctorClosure_Arg0_Bind2 : public Closure<R ()> {
+class FunctorClosure_Arg0_Bind2 : public Closure<R()> {
 public:
   explicit FunctorClosure_Arg0_Bind2(const F& functor, PreArg1 pa1, PreArg2 pa2)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2) {}
@@ -944,7 +1081,7 @@ public:
         FunctorClosure_Arg0_Bind2> self_deleter(this);
     return functor_(pa_1_, pa_2_);
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new FunctorClosure_Arg0_Bind2(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -956,7 +1093,7 @@ private:
 
 template <typename R, typename Arg1, typename Arg2, typename PreArg1,
     typename PreArg2, typename F>
-Closure<R ()>*
+Closure<R()>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
   return new FunctorClosure_Arg0_Bind2<false, typename std::decay<F>::type, R,
       Arg1, Arg2, PreArg1, PreArg2>(
@@ -965,7 +1102,7 @@ NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
 
 template <typename R, typename Arg1, typename Arg2, typename PreArg1,
     typename PreArg2, typename F>
-Closure<R ()>*
+Closure<R()>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
   return new FunctorClosure_Arg0_Bind2<true, typename std::decay<F>::type, R,
       Arg1, Arg2, PreArg1, PreArg2>(
@@ -974,9 +1111,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
 
 template <typename R, typename Arg1, typename Arg2, typename PreArg1,
     typename PreArg2, typename F>
-ClosureFunc<R ()>
+ClosureFunc<R()>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
-  return ClosureFunc<R ()>(NewPermanentClosure<R, Arg1, Arg2, PreArg1,
+  return ClosureFunc<R()>(NewPermanentClosure<R, Arg1, Arg2, PreArg1,
       PreArg2>(std::forward<F>(functor), pa1, pa2));
 }
 
@@ -990,9 +1127,9 @@ template <
   typename Class,
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3 ,
       typename PreArg1, typename PreArg2, typename PreArg3>
-class MethodClosure_Arg0_Bind3 : public Closure<R ()> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3);
-public:
+class MethodClosure_Arg0_Bind3 : public Closure<R()> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3);
   MethodClosure_Arg0_Bind3(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -1001,11 +1138,11 @@ public:
         MethodClosure_Arg0_Bind3> self_deleter(this);
     return (object_->*method_)(pa_1_, pa_2_, pa_3_);
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new MethodClosure_Arg0_Bind3(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -1016,8 +1153,8 @@ private:
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename PreArg1, typename PreArg2,
     typename PreArg3>
-Closure<R ()>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3),
+Closure<R()>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new MethodClosure_Arg0_Bind3<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, PreArg1, PreArg2, PreArg3>(
@@ -1027,8 +1164,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3),
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename PreArg1, typename PreArg2,
     typename PreArg3>
-Closure<R ()>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3),
+Closure<R()>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new MethodClosure_Arg0_Bind3<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, PreArg1, PreArg2, PreArg3>(
@@ -1038,8 +1175,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3),
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename PreArg1, typename PreArg2,
     typename PreArg3>
-ClosureFunc<R ()>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3),
+ClosureFunc<R()>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return ClosureFunc<R ()>(NewPermanentClosure(object, method, pa1, pa2, pa3));
 }
@@ -1052,9 +1189,9 @@ template <
   bool Permanent,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename PreArg1,
       typename PreArg2, typename PreArg3>
-class FunctionClosure_Arg0_Bind3 : public Closure<R ()> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3);
-public:
+class FunctionClosure_Arg0_Bind3 : public Closure<R()> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3);
   FunctionClosure_Arg0_Bind3(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -1063,11 +1200,11 @@ public:
         FunctionClosure_Arg0_Bind3> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_);
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new FunctionClosure_Arg0_Bind3(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -1076,8 +1213,8 @@ private:
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename PreArg1, typename PreArg2, typename PreArg3>
-Closure<R ()>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3), PreArg1 pa1, PreArg2 pa2,
+Closure<R()>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3), PreArg1 pa1, PreArg2 pa2,
     PreArg3 pa3) {
   return new FunctionClosure_Arg0_Bind3<false, R, Arg1, Arg2, Arg3, PreArg1,
       PreArg2, PreArg3>(function, pa1, pa2, pa3);
@@ -1085,8 +1222,8 @@ NewClosure(R (*function)(Arg1, Arg2, Arg3), PreArg1 pa1, PreArg2 pa2,
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename PreArg1, typename PreArg2, typename PreArg3>
-Closure<R ()>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3), PreArg1 pa1, PreArg2 pa2,
+Closure<R()>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3), PreArg1 pa1, PreArg2 pa2,
     PreArg3 pa3) {
   return new FunctionClosure_Arg0_Bind3<true, R, Arg1, Arg2, Arg3, PreArg1,
       PreArg2, PreArg3>(function, pa1, pa2, pa3);
@@ -1094,10 +1231,10 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3), PreArg1 pa1, PreArg2 pa2,
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename PreArg1, typename PreArg2, typename PreArg3>
-ClosureFunc<R ()>
-BindClosure(R (*function)(Arg1, Arg2, Arg3), PreArg1 pa1, PreArg2 pa2,
+ClosureFunc<R()>
+BindClosure(R(*function)(Arg1, Arg2, Arg3), PreArg1 pa1, PreArg2 pa2,
     PreArg3 pa3) {
-  return ClosureFunc<R ()>(NewPermanentClosure(function, pa1, pa2, pa3));
+  return ClosureFunc<R()>(NewPermanentClosure(function, pa1, pa2, pa3));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1108,7 +1245,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename PreArg1,
       typename PreArg2, typename PreArg3>
-class FunctorClosure_Arg0_Bind3 : public Closure<R ()> {
+class FunctorClosure_Arg0_Bind3 : public Closure<R()> {
 public:
   explicit FunctorClosure_Arg0_Bind3(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3)
@@ -1121,7 +1258,7 @@ public:
         FunctorClosure_Arg0_Bind3> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_);
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new FunctorClosure_Arg0_Bind3(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -1134,7 +1271,7 @@ private:
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename PreArg1, typename PreArg2, typename PreArg3, typename F>
-Closure<R ()>*
+Closure<R()>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new FunctorClosure_Arg0_Bind3<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, PreArg1, PreArg2, PreArg3>(
@@ -1143,7 +1280,7 @@ NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename PreArg1, typename PreArg2, typename PreArg3, typename F>
-Closure<R ()>*
+Closure<R()>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new FunctorClosure_Arg0_Bind3<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, PreArg1, PreArg2, PreArg3>(
@@ -1152,9 +1289,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename PreArg1, typename PreArg2, typename PreArg3, typename F>
-ClosureFunc<R ()>
+ClosureFunc<R()>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
-  return ClosureFunc<R ()>(NewPermanentClosure<R, Arg1, Arg2, Arg3, PreArg1,
+  return ClosureFunc<R()>(NewPermanentClosure<R, Arg1, Arg2, Arg3, PreArg1,
       PreArg2, PreArg3>(std::forward<F>(functor), pa1, pa2, pa3));
 }
 
@@ -1169,9 +1306,9 @@ template <
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4 , typename PreArg1, typename PreArg2, typename PreArg3,
       typename PreArg4>
-class MethodClosure_Arg0_Bind4 : public Closure<R ()> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4);
-public:
+class MethodClosure_Arg0_Bind4 : public Closure<R()> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4);
   MethodClosure_Arg0_Bind4(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -1181,11 +1318,11 @@ public:
         MethodClosure_Arg0_Bind4> self_deleter(this);
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_);
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new MethodClosure_Arg0_Bind4(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -1197,8 +1334,8 @@ private:
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4>
-Closure<R ()>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4),
+Closure<R()>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new MethodClosure_Arg0_Bind4<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, PreArg1, PreArg2, PreArg3, PreArg4>(
@@ -1208,8 +1345,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4),
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4>
-Closure<R ()>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R()>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new MethodClosure_Arg0_Bind4<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, PreArg1, PreArg2, PreArg3, PreArg4>(
@@ -1219,8 +1356,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4>
-ClosureFunc<R ()>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4),
+ClosureFunc<R()>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return ClosureFunc<R ()>(NewPermanentClosure(object, method, pa1, pa2, pa3,
       pa4));
@@ -1234,9 +1371,9 @@ template <
   bool Permanent,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
-class FunctionClosure_Arg0_Bind4 : public Closure<R ()> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4);
-public:
+class FunctionClosure_Arg0_Bind4 : public Closure<R()> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4);
   FunctionClosure_Arg0_Bind4(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4) {}
@@ -1245,11 +1382,11 @@ public:
         FunctionClosure_Arg0_Bind4> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_, pa_4_);
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new FunctionClosure_Arg0_Bind4(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -1260,8 +1397,8 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4>
-Closure<R ()>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1, PreArg2 pa2,
+Closure<R()>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1, PreArg2 pa2,
     PreArg3 pa3, PreArg4 pa4) {
   return new FunctionClosure_Arg0_Bind4<false, R, Arg1, Arg2, Arg3, Arg4,
       PreArg1, PreArg2, PreArg3, PreArg4>(function, pa1, pa2, pa3, pa4);
@@ -1270,8 +1407,8 @@ NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1, PreArg2 pa2,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4>
-Closure<R ()>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1,
+Closure<R()>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new FunctionClosure_Arg0_Bind4<true, R, Arg1, Arg2, Arg3, Arg4,
       PreArg1, PreArg2, PreArg3, PreArg4>(function, pa1, pa2, pa3, pa4);
@@ -1280,10 +1417,10 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4>
-ClosureFunc<R ()>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1, PreArg2 pa2,
+ClosureFunc<R()>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1, PreArg2 pa2,
     PreArg3 pa3, PreArg4 pa4) {
-  return ClosureFunc<R ()>(NewPermanentClosure(function, pa1, pa2, pa3, pa4));
+  return ClosureFunc<R()>(NewPermanentClosure(function, pa1, pa2, pa3, pa4));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1294,7 +1431,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
-class FunctorClosure_Arg0_Bind4 : public Closure<R ()> {
+class FunctorClosure_Arg0_Bind4 : public Closure<R()> {
 public:
   explicit FunctorClosure_Arg0_Bind4(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4)
@@ -1308,7 +1445,7 @@ public:
         FunctorClosure_Arg0_Bind4> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_);
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new FunctorClosure_Arg0_Bind4(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -1323,7 +1460,7 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename F>
-Closure<R ()>*
+Closure<R()>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new FunctorClosure_Arg0_Bind4<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, PreArg1, PreArg2, PreArg3, PreArg4>(
@@ -1333,7 +1470,7 @@ NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename F>
-Closure<R ()>*
+Closure<R()>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4) {
   return new FunctorClosure_Arg0_Bind4<true, typename std::decay<F>::type, R,
@@ -1344,9 +1481,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename F>
-ClosureFunc<R ()>
+ClosureFunc<R()>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
-  return ClosureFunc<R ()>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4,
+  return ClosureFunc<R()>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4,
       PreArg1, PreArg2, PreArg3, PreArg4>(std::forward<F>(functor), pa1, pa2,
       pa3, pa4));
 }
@@ -1362,9 +1499,9 @@ template <
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4, typename Arg5 , typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4, typename PreArg5>
-class MethodClosure_Arg0_Bind5 : public Closure<R ()> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5);
-public:
+class MethodClosure_Arg0_Bind5 : public Closure<R()> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5);
   MethodClosure_Arg0_Bind5(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -1374,11 +1511,11 @@ public:
         MethodClosure_Arg0_Bind5> self_deleter(this);
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_);
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new MethodClosure_Arg0_Bind5(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -1392,8 +1529,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5>
-Closure<R ()>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+Closure<R()>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
   return new MethodClosure_Arg0_Bind5<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, PreArg1, PreArg2, PreArg3, PreArg4, PreArg5>(
@@ -1404,8 +1541,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5>
-Closure<R ()>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R()>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
   return new MethodClosure_Arg0_Bind5<true, R, Class, MethodClass, Arg1, Arg2,
@@ -1417,8 +1554,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5>
-ClosureFunc<R ()>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R()>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
   return ClosureFunc<R ()>(NewPermanentClosure(object, method, pa1, pa2, pa3,
       pa4, pa5));
@@ -1433,9 +1570,9 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename PreArg1, typename PreArg2, typename PreArg3,
       typename PreArg4, typename PreArg5>
-class FunctionClosure_Arg0_Bind5 : public Closure<R ()> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5);
-public:
+class FunctionClosure_Arg0_Bind5 : public Closure<R()> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5);
   FunctionClosure_Arg0_Bind5(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4, PreArg5 pa5):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -1445,11 +1582,11 @@ public:
         FunctionClosure_Arg0_Bind5> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_);
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new FunctionClosure_Arg0_Bind5(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -1461,8 +1598,8 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5>
-Closure<R ()>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
+Closure<R()>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
   return new FunctionClosure_Arg0_Bind5<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       PreArg1, PreArg2, PreArg3, PreArg4, PreArg5>(function, pa1, pa2, pa3,
@@ -1472,8 +1609,8 @@ NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5>
-Closure<R ()>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
+Closure<R()>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
   return new FunctionClosure_Arg0_Bind5<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       PreArg1, PreArg2, PreArg3, PreArg4, PreArg5>(function, pa1, pa2, pa3,
@@ -1483,10 +1620,10 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5>
-ClosureFunc<R ()>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
+ClosureFunc<R()>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
-  return ClosureFunc<R ()>(NewPermanentClosure(function, pa1, pa2, pa3, pa4,
+  return ClosureFunc<R()>(NewPermanentClosure(function, pa1, pa2, pa3, pa4,
       pa5));
 }
 
@@ -1499,7 +1636,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename PreArg1, typename PreArg2, typename PreArg3,
       typename PreArg4, typename PreArg5>
-class FunctorClosure_Arg0_Bind5 : public Closure<R ()> {
+class FunctorClosure_Arg0_Bind5 : public Closure<R()> {
 public:
   explicit FunctorClosure_Arg0_Bind5(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5)
@@ -1514,7 +1651,7 @@ public:
         FunctorClosure_Arg0_Bind5> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_);
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new FunctorClosure_Arg0_Bind5(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -1530,7 +1667,7 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5, typename F>
-Closure<R ()>*
+Closure<R()>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
   return new FunctorClosure_Arg0_Bind5<false, typename std::decay<F>::type, R,
@@ -1542,7 +1679,7 @@ NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5, typename F>
-Closure<R ()>*
+Closure<R()>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5) {
   return new FunctorClosure_Arg0_Bind5<true, typename std::decay<F>::type, R,
@@ -1554,10 +1691,10 @@ NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5, typename F>
-ClosureFunc<R ()>
+ClosureFunc<R()>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
-  return ClosureFunc<R ()>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4, Arg5,
+  return ClosureFunc<R()>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4, Arg5,
       PreArg1, PreArg2, PreArg3, PreArg4, PreArg5>(std::forward<F>(functor),
       pa1, pa2, pa3, pa4, pa5));
 }
@@ -1574,9 +1711,9 @@ template <
       typename Arg4, typename Arg5, typename Arg6 , typename PreArg1,
       typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
       typename PreArg6>
-class MethodClosure_Arg0_Bind6 : public Closure<R ()> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
-public:
+class MethodClosure_Arg0_Bind6 : public Closure<R()> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
   MethodClosure_Arg0_Bind6(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -1586,11 +1723,11 @@ public:
         MethodClosure_Arg0_Bind6> self_deleter(this);
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_);
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new MethodClosure_Arg0_Bind6(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -1605,10 +1742,10 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6>
-Closure<R ()>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
-    PreArg5 pa5, PreArg6 pa6) {
+Closure<R()>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5,
+    PreArg6 pa6) {
   return new MethodClosure_Arg0_Bind6<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, PreArg1, PreArg2, PreArg3, PreArg4, PreArg5,
       PreArg6>(
@@ -1619,8 +1756,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6>
-Closure<R ()>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R()>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
   return new MethodClosure_Arg0_Bind6<true, R, Class, MethodClass, Arg1, Arg2,
@@ -1633,8 +1770,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6>
-ClosureFunc<R ()>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R()>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
   return ClosureFunc<R ()>(NewPermanentClosure(object, method, pa1, pa2, pa3,
@@ -1650,9 +1787,9 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4, typename PreArg5, typename PreArg6>
-class FunctionClosure_Arg0_Bind6 : public Closure<R ()> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
-public:
+class FunctionClosure_Arg0_Bind6 : public Closure<R()> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
   FunctionClosure_Arg0_Bind6(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -1662,11 +1799,11 @@ public:
         FunctionClosure_Arg0_Bind6> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_);
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new FunctionClosure_Arg0_Bind6(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -1680,8 +1817,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename PreArg6>
-Closure<R ()>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
+Closure<R()>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new FunctionClosure_Arg0_Bind6<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, PreArg1, PreArg2, PreArg3, PreArg4, PreArg5, PreArg6>(function,
@@ -1692,8 +1829,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename PreArg6>
-Closure<R ()>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6),
+Closure<R()>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5,
     PreArg6 pa6) {
   return new FunctionClosure_Arg0_Bind6<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
@@ -1705,10 +1842,10 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename PreArg6>
-ClosureFunc<R ()>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
+ClosureFunc<R()>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
-  return ClosureFunc<R ()>(NewPermanentClosure(function, pa1, pa2, pa3, pa4,
+  return ClosureFunc<R()>(NewPermanentClosure(function, pa1, pa2, pa3, pa4,
       pa5, pa6));
 }
 
@@ -1721,7 +1858,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4, typename PreArg5, typename PreArg6>
-class FunctorClosure_Arg0_Bind6 : public Closure<R ()> {
+class FunctorClosure_Arg0_Bind6 : public Closure<R()> {
 public:
   explicit FunctorClosure_Arg0_Bind6(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6)
@@ -1736,7 +1873,7 @@ public:
         FunctorClosure_Arg0_Bind6> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_);
   }
-  virtual Closure<R ()>* Clone() {
+  virtual Closure<R()>* Clone() {
     return new FunctorClosure_Arg0_Bind6(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -1754,7 +1891,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename PreArg6, typename F>
-Closure<R ()>*
+Closure<R()>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
   return new FunctorClosure_Arg0_Bind6<false, typename std::decay<F>::type, R,
@@ -1767,7 +1904,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename PreArg6, typename F>
-Closure<R ()>*
+Closure<R()>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new FunctorClosure_Arg0_Bind6<true, typename std::decay<F>::type, R,
@@ -1780,10 +1917,10 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename PreArg6, typename F>
-ClosureFunc<R ()>
+ClosureFunc<R()>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
-  return ClosureFunc<R ()>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4, Arg5,
+  return ClosureFunc<R()>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, PreArg1, PreArg2, PreArg3, PreArg4, PreArg5,
       PreArg6>(std::forward<F>(functor), pa1, pa2, pa3, pa4, pa5, pa6));
 }
@@ -1797,9 +1934,9 @@ template <
   typename R,
   typename Class,
   typename MethodClass, typename Arg1 >
-class MethodClosure_Arg1_Bind0 : public Closure<R (Arg1)> {
-  typedef R (MethodClass::*MethodType)(Arg1);
-public:
+class MethodClosure_Arg1_Bind0 : public Closure<R(Arg1)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1);
   MethodClosure_Arg1_Bind0(Class *object, MethodType method):
     object_(object), method_(method) {}
   virtual R Run(Arg1 arg1) {
@@ -1807,32 +1944,32 @@ public:
         MethodClosure_Arg1_Bind0> self_deleter(this);
     return (object_->*method_)(arg1);
   }
-  virtual Closure<R (Arg1)>* Clone() {
+  virtual Closure<R(Arg1)>* Clone() {
     return new MethodClosure_Arg1_Bind0(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
 };
 
 template <typename R, typename Class, typename MethodClass, typename Arg1>
-Closure<R (Arg1)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1)) {
+Closure<R(Arg1)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1)) {
   return new MethodClosure_Arg1_Bind0<false, R, Class, MethodClass, Arg1>(
     object, method);
 }
 
 template <typename R, typename Class, typename MethodClass, typename Arg1>
-Closure<R (Arg1)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1)) {
+Closure<R(Arg1)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1)) {
   return new MethodClosure_Arg1_Bind0<true, R, Class, MethodClass, Arg1>(
     object, method);
 }
 
 template <typename R, typename Class, typename MethodClass, typename Arg1>
-ClosureFunc<R (Arg1)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1)) {
+ClosureFunc<R(Arg1)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1)) {
   return ClosureFunc<R (Arg1)>(NewPermanentClosure(object, method));
 }
 
@@ -1843,9 +1980,9 @@ BindClosure(Class *object, R (MethodClass::*method)(Arg1)) {
 template <
   bool Permanent,
   typename R, typename Arg1>
-class FunctionClosure_Arg1_Bind0 : public Closure<R (Arg1)> {
-  typedef R (*FunctionType)(Arg1);
-public:
+class FunctionClosure_Arg1_Bind0 : public Closure<R(Arg1)> {
+ public:
+  typedef R(*FunctionType)(Arg1);
   FunctionClosure_Arg1_Bind0(FunctionType function):
     function_(function) {}
   virtual R Run(Arg1 arg1) {
@@ -1853,30 +1990,30 @@ public:
         FunctionClosure_Arg1_Bind0> self_deleter(this);
     return function_(arg1);
   }
-  virtual Closure<R (Arg1)>* Clone() {
+  virtual Closure<R(Arg1)>* Clone() {
     return new FunctionClosure_Arg1_Bind0(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
 };
 
 template <typename R, typename Arg1>
-Closure<R (Arg1)>*
-NewClosure(R (*function)(Arg1)) {
+Closure<R(Arg1)>*
+NewClosure(R(*function)(Arg1)) {
   return new FunctionClosure_Arg1_Bind0<false, R, Arg1>(function);
 }
 
 template <typename R, typename Arg1>
-Closure<R (Arg1)>*
-NewPermanentClosure(R (*function)(Arg1)) {
+Closure<R(Arg1)>*
+NewPermanentClosure(R(*function)(Arg1)) {
   return new FunctionClosure_Arg1_Bind0<true, R, Arg1>(function);
 }
 
 template <typename R, typename Arg1>
-ClosureFunc<R (Arg1)>
-BindClosure(R (*function)(Arg1)) {
-  return ClosureFunc<R (Arg1)>(NewPermanentClosure(function));
+ClosureFunc<R(Arg1)>
+BindClosure(R(*function)(Arg1)) {
+  return ClosureFunc<R(Arg1)>(NewPermanentClosure(function));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1886,7 +2023,7 @@ BindClosure(R (*function)(Arg1)) {
 template <
   bool Permanent, typename F,
   typename R, typename Arg1>
-class FunctorClosure_Arg1_Bind0 : public Closure<R (Arg1)> {
+class FunctorClosure_Arg1_Bind0 : public Closure<R(Arg1)> {
 public:
   explicit FunctorClosure_Arg1_Bind0(const F& functor)
     : functor_(functor) {}
@@ -1897,7 +2034,7 @@ public:
         FunctorClosure_Arg1_Bind0> self_deleter(this);
     return functor_(arg1);
   }
-  virtual Closure<R (Arg1)>* Clone() {
+  virtual Closure<R(Arg1)>* Clone() {
     return new FunctorClosure_Arg1_Bind0(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -1906,7 +2043,7 @@ private:
 };
 
 template <typename R, typename Arg1, typename F>
-Closure<R (Arg1)>*
+Closure<R(Arg1)>*
 NewClosure(F&& functor) {
   return new FunctorClosure_Arg1_Bind0<false, typename std::decay<F>::type, R,
       Arg1>(
@@ -1914,7 +2051,7 @@ NewClosure(F&& functor) {
 }
 
 template <typename R, typename Arg1, typename F>
-Closure<R (Arg1)>*
+Closure<R(Arg1)>*
 NewPermanentClosure(F&& functor) {
   return new FunctorClosure_Arg1_Bind0<true, typename std::decay<F>::type, R,
       Arg1>(
@@ -1922,9 +2059,9 @@ NewPermanentClosure(F&& functor) {
 }
 
 template <typename R, typename Arg1, typename F>
-ClosureFunc<R (Arg1)>
+ClosureFunc<R(Arg1)>
 BindClosure(F&& functor) {
-  return ClosureFunc<R (Arg1)>(NewPermanentClosure<R,
+  return ClosureFunc<R(Arg1)>(NewPermanentClosure<R,
       Arg1>(std::forward<F>(functor)));
 }
 
@@ -1937,9 +2074,9 @@ template <
   typename R,
   typename Class,
   typename MethodClass, typename Arg1, typename Arg2 , typename PreArg1>
-class MethodClosure_Arg1_Bind1 : public Closure<R (Arg2)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2);
-public:
+class MethodClosure_Arg1_Bind1 : public Closure<R(Arg2)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2);
   MethodClosure_Arg1_Bind1(Class *object, MethodType method, PreArg1 pa1):
     object_(object), method_(method), pa_1_(pa1) {}
   virtual R Run(Arg2 arg2) {
@@ -1947,11 +2084,11 @@ public:
         MethodClosure_Arg1_Bind1> self_deleter(this);
     return (object_->*method_)(pa_1_, arg2);
   }
-  virtual Closure<R (Arg2)>* Clone() {
+  virtual Closure<R(Arg2)>* Clone() {
     return new MethodClosure_Arg1_Bind1(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -1959,8 +2096,8 @@ private:
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename PreArg1>
-Closure<R (Arg2)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2), PreArg1 pa1) {
+Closure<R(Arg2)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2), PreArg1 pa1) {
   return new MethodClosure_Arg1_Bind1<false, R, Class, MethodClass, Arg1, Arg2,
       PreArg1>(
     object, method, pa1);
@@ -1968,8 +2105,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2), PreArg1 pa1) {
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename PreArg1>
-Closure<R (Arg2)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2),
+Closure<R(Arg2)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2),
     PreArg1 pa1) {
   return new MethodClosure_Arg1_Bind1<true, R, Class, MethodClass, Arg1, Arg2,
       PreArg1>(
@@ -1978,8 +2115,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2),
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename PreArg1>
-ClosureFunc<R (Arg2)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2), PreArg1 pa1) {
+ClosureFunc<R(Arg2)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2), PreArg1 pa1) {
   return ClosureFunc<R (Arg2)>(NewPermanentClosure(object, method, pa1));
 }
 
@@ -1990,9 +2127,9 @@ BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2), PreArg1 pa1) {
 template <
   bool Permanent,
   typename R, typename Arg1, typename Arg2, typename PreArg1>
-class FunctionClosure_Arg1_Bind1 : public Closure<R (Arg2)> {
-  typedef R (*FunctionType)(Arg1, Arg2);
-public:
+class FunctionClosure_Arg1_Bind1 : public Closure<R(Arg2)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2);
   FunctionClosure_Arg1_Bind1(FunctionType function, PreArg1 pa1):
     function_(function), pa_1_(pa1) {}
   virtual R Run(Arg2 arg2) {
@@ -2000,33 +2137,33 @@ public:
         FunctionClosure_Arg1_Bind1> self_deleter(this);
     return function_(pa_1_, arg2);
   }
-  virtual Closure<R (Arg2)>* Clone() {
+  virtual Closure<R(Arg2)>* Clone() {
     return new FunctionClosure_Arg1_Bind1(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
 };
 
 template <typename R, typename Arg1, typename Arg2, typename PreArg1>
-Closure<R (Arg2)>*
-NewClosure(R (*function)(Arg1, Arg2), PreArg1 pa1) {
+Closure<R(Arg2)>*
+NewClosure(R(*function)(Arg1, Arg2), PreArg1 pa1) {
   return new FunctionClosure_Arg1_Bind1<false, R, Arg1, Arg2,
       PreArg1>(function, pa1);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename PreArg1>
-Closure<R (Arg2)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2), PreArg1 pa1) {
+Closure<R(Arg2)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2), PreArg1 pa1) {
   return new FunctionClosure_Arg1_Bind1<true, R, Arg1, Arg2, PreArg1>(function,
       pa1);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename PreArg1>
-ClosureFunc<R (Arg2)>
-BindClosure(R (*function)(Arg1, Arg2), PreArg1 pa1) {
-  return ClosureFunc<R (Arg2)>(NewPermanentClosure(function, pa1));
+ClosureFunc<R(Arg2)>
+BindClosure(R(*function)(Arg1, Arg2), PreArg1 pa1) {
+  return ClosureFunc<R(Arg2)>(NewPermanentClosure(function, pa1));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -2036,7 +2173,7 @@ BindClosure(R (*function)(Arg1, Arg2), PreArg1 pa1) {
 template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename PreArg1>
-class FunctorClosure_Arg1_Bind1 : public Closure<R (Arg2)> {
+class FunctorClosure_Arg1_Bind1 : public Closure<R(Arg2)> {
 public:
   explicit FunctorClosure_Arg1_Bind1(const F& functor, PreArg1 pa1)
     : functor_(functor), pa_1_(pa1) {}
@@ -2047,7 +2184,7 @@ public:
         FunctorClosure_Arg1_Bind1> self_deleter(this);
     return functor_(pa_1_, arg2);
   }
-  virtual Closure<R (Arg2)>* Clone() {
+  virtual Closure<R(Arg2)>* Clone() {
     return new FunctorClosure_Arg1_Bind1(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -2058,7 +2195,7 @@ private:
 
 template <typename R, typename Arg1, typename Arg2, typename PreArg1,
     typename F>
-Closure<R (Arg2)>*
+Closure<R(Arg2)>*
 NewClosure(F&& functor, PreArg1 pa1) {
   return new FunctorClosure_Arg1_Bind1<false, typename std::decay<F>::type, R,
       Arg1, Arg2, PreArg1>(
@@ -2067,7 +2204,7 @@ NewClosure(F&& functor, PreArg1 pa1) {
 
 template <typename R, typename Arg1, typename Arg2, typename PreArg1,
     typename F>
-Closure<R (Arg2)>*
+Closure<R(Arg2)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1) {
   return new FunctorClosure_Arg1_Bind1<true, typename std::decay<F>::type, R,
       Arg1, Arg2, PreArg1>(
@@ -2076,9 +2213,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1) {
 
 template <typename R, typename Arg1, typename Arg2, typename PreArg1,
     typename F>
-ClosureFunc<R (Arg2)>
+ClosureFunc<R(Arg2)>
 BindClosure(F&& functor, PreArg1 pa1) {
-  return ClosureFunc<R (Arg2)>(NewPermanentClosure<R, Arg1, Arg2,
+  return ClosureFunc<R(Arg2)>(NewPermanentClosure<R, Arg1, Arg2,
       PreArg1>(std::forward<F>(functor), pa1));
 }
 
@@ -2092,9 +2229,9 @@ template <
   typename Class,
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3 ,
       typename PreArg1, typename PreArg2>
-class MethodClosure_Arg1_Bind2 : public Closure<R (Arg3)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3);
-public:
+class MethodClosure_Arg1_Bind2 : public Closure<R(Arg3)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3);
   MethodClosure_Arg1_Bind2(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2) {}
@@ -2103,11 +2240,11 @@ public:
         MethodClosure_Arg1_Bind2> self_deleter(this);
     return (object_->*method_)(pa_1_, pa_2_, arg3);
   }
-  virtual Closure<R (Arg3)>* Clone() {
+  virtual Closure<R(Arg3)>* Clone() {
     return new MethodClosure_Arg1_Bind2(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -2116,8 +2253,8 @@ private:
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename PreArg1, typename PreArg2>
-Closure<R (Arg3)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3),
+Closure<R(Arg3)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3),
     PreArg1 pa1, PreArg2 pa2) {
   return new MethodClosure_Arg1_Bind2<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, PreArg1, PreArg2>(
@@ -2126,8 +2263,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3),
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename PreArg1, typename PreArg2>
-Closure<R (Arg3)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3),
+Closure<R(Arg3)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3),
     PreArg1 pa1, PreArg2 pa2) {
   return new MethodClosure_Arg1_Bind2<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, PreArg1, PreArg2>(
@@ -2136,8 +2273,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3),
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename PreArg1, typename PreArg2>
-ClosureFunc<R (Arg3)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3),
+ClosureFunc<R(Arg3)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3),
     PreArg1 pa1, PreArg2 pa2) {
   return ClosureFunc<R (Arg3)>(NewPermanentClosure(object, method, pa1, pa2));
 }
@@ -2150,9 +2287,9 @@ template <
   bool Permanent,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename PreArg1,
       typename PreArg2>
-class FunctionClosure_Arg1_Bind2 : public Closure<R (Arg3)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3);
-public:
+class FunctionClosure_Arg1_Bind2 : public Closure<R(Arg3)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3);
   FunctionClosure_Arg1_Bind2(FunctionType function, PreArg1 pa1, PreArg2 pa2):
     function_(function), pa_1_(pa1), pa_2_(pa2) {}
   virtual R Run(Arg3 arg3) {
@@ -2160,11 +2297,11 @@ public:
         FunctionClosure_Arg1_Bind2> self_deleter(this);
     return function_(pa_1_, pa_2_, arg3);
   }
-  virtual Closure<R (Arg3)>* Clone() {
+  virtual Closure<R(Arg3)>* Clone() {
     return new FunctionClosure_Arg1_Bind2(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -2172,25 +2309,25 @@ private:
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename PreArg1, typename PreArg2>
-Closure<R (Arg3)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3), PreArg1 pa1, PreArg2 pa2) {
+Closure<R(Arg3)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3), PreArg1 pa1, PreArg2 pa2) {
   return new FunctionClosure_Arg1_Bind2<false, R, Arg1, Arg2, Arg3, PreArg1,
       PreArg2>(function, pa1, pa2);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename PreArg1, typename PreArg2>
-Closure<R (Arg3)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3), PreArg1 pa1, PreArg2 pa2) {
+Closure<R(Arg3)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3), PreArg1 pa1, PreArg2 pa2) {
   return new FunctionClosure_Arg1_Bind2<true, R, Arg1, Arg2, Arg3, PreArg1,
       PreArg2>(function, pa1, pa2);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename PreArg1, typename PreArg2>
-ClosureFunc<R (Arg3)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3), PreArg1 pa1, PreArg2 pa2) {
-  return ClosureFunc<R (Arg3)>(NewPermanentClosure(function, pa1, pa2));
+ClosureFunc<R(Arg3)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3), PreArg1 pa1, PreArg2 pa2) {
+  return ClosureFunc<R(Arg3)>(NewPermanentClosure(function, pa1, pa2));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -2201,7 +2338,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename PreArg1,
       typename PreArg2>
-class FunctorClosure_Arg1_Bind2 : public Closure<R (Arg3)> {
+class FunctorClosure_Arg1_Bind2 : public Closure<R(Arg3)> {
 public:
   explicit FunctorClosure_Arg1_Bind2(const F& functor, PreArg1 pa1, PreArg2 pa2)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2) {}
@@ -2212,7 +2349,7 @@ public:
         FunctorClosure_Arg1_Bind2> self_deleter(this);
     return functor_(pa_1_, pa_2_, arg3);
   }
-  virtual Closure<R (Arg3)>* Clone() {
+  virtual Closure<R(Arg3)>* Clone() {
     return new FunctorClosure_Arg1_Bind2(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -2224,7 +2361,7 @@ private:
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename PreArg1, typename PreArg2, typename F>
-Closure<R (Arg3)>*
+Closure<R(Arg3)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
   return new FunctorClosure_Arg1_Bind2<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, PreArg1, PreArg2>(
@@ -2233,7 +2370,7 @@ NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename PreArg1, typename PreArg2, typename F>
-Closure<R (Arg3)>*
+Closure<R(Arg3)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
   return new FunctorClosure_Arg1_Bind2<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, PreArg1, PreArg2>(
@@ -2242,10 +2379,10 @@ NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename PreArg1, typename PreArg2, typename F>
-ClosureFunc<R (Arg3)>
+ClosureFunc<R(Arg3)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
-  return ClosureFunc<R (Arg3)>(NewPermanentClosure<R, Arg1, Arg2, Arg3,
-      PreArg1, PreArg2>(std::forward<F>(functor), pa1, pa2));
+  return ClosureFunc<R(Arg3)>(NewPermanentClosure<R, Arg1, Arg2, Arg3, PreArg1,
+      PreArg2>(std::forward<F>(functor), pa1, pa2));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -2258,9 +2395,9 @@ template <
   typename Class,
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4 , typename PreArg1, typename PreArg2, typename PreArg3>
-class MethodClosure_Arg1_Bind3 : public Closure<R (Arg4)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4);
-public:
+class MethodClosure_Arg1_Bind3 : public Closure<R(Arg4)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4);
   MethodClosure_Arg1_Bind3(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -2269,11 +2406,11 @@ public:
         MethodClosure_Arg1_Bind3> self_deleter(this);
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, arg4);
   }
-  virtual Closure<R (Arg4)>* Clone() {
+  virtual Closure<R(Arg4)>* Clone() {
     return new MethodClosure_Arg1_Bind3(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -2284,8 +2421,8 @@ private:
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename PreArg1,
     typename PreArg2, typename PreArg3>
-Closure<R (Arg4)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4),
+Closure<R(Arg4)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new MethodClosure_Arg1_Bind3<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, PreArg1, PreArg2, PreArg3>(
@@ -2295,8 +2432,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4),
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename PreArg1,
     typename PreArg2, typename PreArg3>
-Closure<R (Arg4)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg4)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new MethodClosure_Arg1_Bind3<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, PreArg1, PreArg2, PreArg3>(
@@ -2306,8 +2443,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename PreArg1,
     typename PreArg2, typename PreArg3>
-ClosureFunc<R (Arg4)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4),
+ClosureFunc<R(Arg4)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return ClosureFunc<R (Arg4)>(NewPermanentClosure(object, method, pa1, pa2,
       pa3));
@@ -2321,9 +2458,9 @@ template <
   bool Permanent,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename PreArg1, typename PreArg2, typename PreArg3>
-class FunctionClosure_Arg1_Bind3 : public Closure<R (Arg4)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4);
-public:
+class FunctionClosure_Arg1_Bind3 : public Closure<R(Arg4)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4);
   FunctionClosure_Arg1_Bind3(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -2332,11 +2469,11 @@ public:
         FunctionClosure_Arg1_Bind3> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_, arg4);
   }
-  virtual Closure<R (Arg4)>* Clone() {
+  virtual Closure<R(Arg4)>* Clone() {
     return new FunctionClosure_Arg1_Bind3(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -2345,8 +2482,8 @@ private:
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename PreArg2, typename PreArg3>
-Closure<R (Arg4)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1, PreArg2 pa2,
+Closure<R(Arg4)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1, PreArg2 pa2,
     PreArg3 pa3) {
   return new FunctionClosure_Arg1_Bind3<false, R, Arg1, Arg2, Arg3, Arg4,
       PreArg1, PreArg2, PreArg3>(function, pa1, pa2, pa3);
@@ -2354,8 +2491,8 @@ NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1, PreArg2 pa2,
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename PreArg2, typename PreArg3>
-Closure<R (Arg4)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1,
+Closure<R(Arg4)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3) {
   return new FunctionClosure_Arg1_Bind3<true, R, Arg1, Arg2, Arg3, Arg4,
       PreArg1, PreArg2, PreArg3>(function, pa1, pa2, pa3);
@@ -2363,10 +2500,10 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1,
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename PreArg2, typename PreArg3>
-ClosureFunc<R (Arg4)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1, PreArg2 pa2,
+ClosureFunc<R(Arg4)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1, PreArg2 pa2,
     PreArg3 pa3) {
-  return ClosureFunc<R (Arg4)>(NewPermanentClosure(function, pa1, pa2, pa3));
+  return ClosureFunc<R(Arg4)>(NewPermanentClosure(function, pa1, pa2, pa3));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -2377,7 +2514,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename PreArg1, typename PreArg2, typename PreArg3>
-class FunctorClosure_Arg1_Bind3 : public Closure<R (Arg4)> {
+class FunctorClosure_Arg1_Bind3 : public Closure<R(Arg4)> {
 public:
   explicit FunctorClosure_Arg1_Bind3(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3)
@@ -2390,7 +2527,7 @@ public:
         FunctorClosure_Arg1_Bind3> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, arg4);
   }
-  virtual Closure<R (Arg4)>* Clone() {
+  virtual Closure<R(Arg4)>* Clone() {
     return new FunctorClosure_Arg1_Bind3(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -2404,7 +2541,7 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename PreArg2, typename PreArg3,
     typename F>
-Closure<R (Arg4)>*
+Closure<R(Arg4)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new FunctorClosure_Arg1_Bind3<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, PreArg1, PreArg2, PreArg3>(
@@ -2414,7 +2551,7 @@ NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename PreArg2, typename PreArg3,
     typename F>
-Closure<R (Arg4)>*
+Closure<R(Arg4)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new FunctorClosure_Arg1_Bind3<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, PreArg1, PreArg2, PreArg3>(
@@ -2424,9 +2561,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename PreArg2, typename PreArg3,
     typename F>
-ClosureFunc<R (Arg4)>
+ClosureFunc<R(Arg4)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
-  return ClosureFunc<R (Arg4)>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4,
+  return ClosureFunc<R(Arg4)>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4,
       PreArg1, PreArg2, PreArg3>(std::forward<F>(functor), pa1, pa2, pa3));
 }
 
@@ -2441,9 +2578,9 @@ template <
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4, typename Arg5 , typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4>
-class MethodClosure_Arg1_Bind4 : public Closure<R (Arg5)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5);
-public:
+class MethodClosure_Arg1_Bind4 : public Closure<R(Arg5)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5);
   MethodClosure_Arg1_Bind4(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -2453,11 +2590,11 @@ public:
         MethodClosure_Arg1_Bind4> self_deleter(this);
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_, arg5);
   }
-  virtual Closure<R (Arg5)>* Clone() {
+  virtual Closure<R(Arg5)>* Clone() {
     return new MethodClosure_Arg1_Bind4(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -2469,8 +2606,8 @@ private:
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
-Closure<R (Arg5)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+Closure<R(Arg5)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new MethodClosure_Arg1_Bind4<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, PreArg1, PreArg2, PreArg3, PreArg4>(
@@ -2480,8 +2617,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
-Closure<R (Arg5)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg5)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new MethodClosure_Arg1_Bind4<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, PreArg1, PreArg2, PreArg3, PreArg4>(
@@ -2491,8 +2628,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
-ClosureFunc<R (Arg5)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg5)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return ClosureFunc<R (Arg5)>(NewPermanentClosure(object, method, pa1, pa2,
       pa3, pa4));
@@ -2507,9 +2644,9 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename PreArg1, typename PreArg2, typename PreArg3,
       typename PreArg4>
-class FunctionClosure_Arg1_Bind4 : public Closure<R (Arg5)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5);
-public:
+class FunctionClosure_Arg1_Bind4 : public Closure<R(Arg5)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5);
   FunctionClosure_Arg1_Bind4(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4) {}
@@ -2518,11 +2655,11 @@ public:
         FunctionClosure_Arg1_Bind4> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_, pa_4_, arg5);
   }
-  virtual Closure<R (Arg5)>* Clone() {
+  virtual Closure<R(Arg5)>* Clone() {
     return new FunctionClosure_Arg1_Bind4(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -2533,8 +2670,8 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4>
-Closure<R (Arg5)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
+Closure<R(Arg5)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new FunctionClosure_Arg1_Bind4<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       PreArg1, PreArg2, PreArg3, PreArg4>(function, pa1, pa2, pa3, pa4);
@@ -2543,8 +2680,8 @@ NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4>
-Closure<R (Arg5)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
+Closure<R(Arg5)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new FunctionClosure_Arg1_Bind4<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       PreArg1, PreArg2, PreArg3, PreArg4>(function, pa1, pa2, pa3, pa4);
@@ -2553,10 +2690,10 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4>
-ClosureFunc<R (Arg5)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
+ClosureFunc<R(Arg5)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
-  return ClosureFunc<R (Arg5)>(NewPermanentClosure(function, pa1, pa2, pa3,
+  return ClosureFunc<R(Arg5)>(NewPermanentClosure(function, pa1, pa2, pa3,
       pa4));
 }
 
@@ -2569,7 +2706,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename PreArg1, typename PreArg2, typename PreArg3,
       typename PreArg4>
-class FunctorClosure_Arg1_Bind4 : public Closure<R (Arg5)> {
+class FunctorClosure_Arg1_Bind4 : public Closure<R(Arg5)> {
 public:
   explicit FunctorClosure_Arg1_Bind4(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4)
@@ -2583,7 +2720,7 @@ public:
         FunctorClosure_Arg1_Bind4> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_, arg5);
   }
-  virtual Closure<R (Arg5)>* Clone() {
+  virtual Closure<R(Arg5)>* Clone() {
     return new FunctorClosure_Arg1_Bind4(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -2598,7 +2735,7 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename F>
-Closure<R (Arg5)>*
+Closure<R(Arg5)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new FunctorClosure_Arg1_Bind4<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, PreArg1, PreArg2, PreArg3, PreArg4>(
@@ -2608,7 +2745,7 @@ NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename F>
-Closure<R (Arg5)>*
+Closure<R(Arg5)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4) {
   return new FunctorClosure_Arg1_Bind4<true, typename std::decay<F>::type, R,
@@ -2619,9 +2756,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename F>
-ClosureFunc<R (Arg5)>
+ClosureFunc<R(Arg5)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
-  return ClosureFunc<R (Arg5)>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4,
+  return ClosureFunc<R(Arg5)>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4,
       Arg5, PreArg1, PreArg2, PreArg3, PreArg4>(std::forward<F>(functor), pa1,
       pa2, pa3, pa4));
 }
@@ -2637,9 +2774,9 @@ template <
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4, typename Arg5, typename Arg6 , typename PreArg1,
       typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5>
-class MethodClosure_Arg1_Bind5 : public Closure<R (Arg6)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
-public:
+class MethodClosure_Arg1_Bind5 : public Closure<R(Arg6)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
   MethodClosure_Arg1_Bind5(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -2649,11 +2786,11 @@ public:
         MethodClosure_Arg1_Bind5> self_deleter(this);
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, arg6);
   }
-  virtual Closure<R (Arg6)>* Clone() {
+  virtual Closure<R(Arg6)>* Clone() {
     return new MethodClosure_Arg1_Bind5(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -2667,10 +2804,9 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5>
-Closure<R (Arg6)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
-    PreArg5 pa5) {
+Closure<R(Arg6)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
   return new MethodClosure_Arg1_Bind5<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, PreArg1, PreArg2, PreArg3, PreArg4, PreArg5>(
     object, method, pa1, pa2, pa3, pa4, pa5);
@@ -2680,8 +2816,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5>
-Closure<R (Arg6)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg6)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
   return new MethodClosure_Arg1_Bind5<true, R, Class, MethodClass, Arg1, Arg2,
@@ -2693,8 +2829,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5>
-ClosureFunc<R (Arg6)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg6)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
   return ClosureFunc<R (Arg6)>(NewPermanentClosure(object, method, pa1, pa2,
@@ -2710,9 +2846,9 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4, typename PreArg5>
-class FunctionClosure_Arg1_Bind5 : public Closure<R (Arg6)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
-public:
+class FunctionClosure_Arg1_Bind5 : public Closure<R(Arg6)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
   FunctionClosure_Arg1_Bind5(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4, PreArg5 pa5):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -2722,11 +2858,11 @@ public:
         FunctionClosure_Arg1_Bind5> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, arg6);
   }
-  virtual Closure<R (Arg6)>* Clone() {
+  virtual Closure<R(Arg6)>* Clone() {
     return new FunctionClosure_Arg1_Bind5(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -2738,8 +2874,8 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5>
-Closure<R (Arg6)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
+Closure<R(Arg6)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
   return new FunctionClosure_Arg1_Bind5<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, PreArg1, PreArg2, PreArg3, PreArg4, PreArg5>(function, pa1, pa2,
@@ -2749,8 +2885,8 @@ NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5>
-Closure<R (Arg6)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6),
+Closure<R(Arg6)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
   return new FunctionClosure_Arg1_Bind5<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, PreArg1, PreArg2, PreArg3, PreArg4, PreArg5>(function, pa1, pa2,
@@ -2760,11 +2896,11 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6),
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5>
-ClosureFunc<R (Arg6)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
+ClosureFunc<R(Arg6)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
-  return ClosureFunc<R (Arg6)>(NewPermanentClosure(function, pa1, pa2, pa3,
-      pa4, pa5));
+  return ClosureFunc<R(Arg6)>(NewPermanentClosure(function, pa1, pa2, pa3, pa4,
+      pa5));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -2776,7 +2912,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4, typename PreArg5>
-class FunctorClosure_Arg1_Bind5 : public Closure<R (Arg6)> {
+class FunctorClosure_Arg1_Bind5 : public Closure<R(Arg6)> {
 public:
   explicit FunctorClosure_Arg1_Bind5(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5)
@@ -2791,7 +2927,7 @@ public:
         FunctorClosure_Arg1_Bind5> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, arg6);
   }
-  virtual Closure<R (Arg6)>* Clone() {
+  virtual Closure<R(Arg6)>* Clone() {
     return new FunctorClosure_Arg1_Bind5(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -2808,7 +2944,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename F>
-Closure<R (Arg6)>*
+Closure<R(Arg6)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
   return new FunctorClosure_Arg1_Bind5<false, typename std::decay<F>::type, R,
@@ -2821,7 +2957,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename F>
-Closure<R (Arg6)>*
+Closure<R(Arg6)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5) {
   return new FunctorClosure_Arg1_Bind5<true, typename std::decay<F>::type, R,
@@ -2834,10 +2970,10 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename F>
-ClosureFunc<R (Arg6)>
+ClosureFunc<R(Arg6)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
-  return ClosureFunc<R (Arg6)>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4,
+  return ClosureFunc<R(Arg6)>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4,
       Arg5, Arg6, PreArg1, PreArg2, PreArg3, PreArg4,
       PreArg5>(std::forward<F>(functor), pa1, pa2, pa3, pa4, pa5));
 }
@@ -2854,10 +2990,9 @@ template <
       typename Arg4, typename Arg5, typename Arg6, typename Arg7 ,
       typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
       typename PreArg5, typename PreArg6>
-class MethodClosure_Arg1_Bind6 : public Closure<R (Arg7)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7);
-public:
+class MethodClosure_Arg1_Bind6 : public Closure<R(Arg7)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7);
   MethodClosure_Arg1_Bind6(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -2867,11 +3002,11 @@ public:
         MethodClosure_Arg1_Bind6> self_deleter(this);
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_, arg7);
   }
-  virtual Closure<R (Arg7)>* Clone() {
+  virtual Closure<R(Arg7)>* Clone() {
     return new MethodClosure_Arg1_Bind6(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -2886,9 +3021,9 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5, typename PreArg6>
-Closure<R (Arg7)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
+Closure<R(Arg7)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
   return new MethodClosure_Arg1_Bind6<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, PreArg1, PreArg2, PreArg3, PreArg4,
@@ -2900,8 +3035,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5, typename PreArg6>
-Closure<R (Arg7)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg7)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new MethodClosure_Arg1_Bind6<true, R, Class, MethodClass, Arg1, Arg2,
@@ -2914,8 +3049,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5, typename PreArg6>
-ClosureFunc<R (Arg7)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg7)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
   return ClosureFunc<R (Arg7)>(NewPermanentClosure(object, method, pa1, pa2,
@@ -2932,9 +3067,9 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename PreArg1,
       typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
       typename PreArg6>
-class FunctionClosure_Arg1_Bind6 : public Closure<R (Arg7)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7);
-public:
+class FunctionClosure_Arg1_Bind6 : public Closure<R(Arg7)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7);
   FunctionClosure_Arg1_Bind6(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -2944,11 +3079,11 @@ public:
         FunctionClosure_Arg1_Bind6> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_, arg7);
   }
-  virtual Closure<R (Arg7)>* Clone() {
+  virtual Closure<R(Arg7)>* Clone() {
     return new FunctionClosure_Arg1_Bind6(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -2962,10 +3097,9 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6>
-Closure<R (Arg7)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
-    PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5,
-    PreArg6 pa6) {
+Closure<R(Arg7)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7), PreArg1 pa1,
+    PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new FunctionClosure_Arg1_Bind6<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, PreArg1, PreArg2, PreArg3, PreArg4, PreArg5,
       PreArg6>(function, pa1, pa2, pa3, pa4, pa5, pa6);
@@ -2975,8 +3109,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6>
-Closure<R (Arg7)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
+Closure<R(Arg7)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5,
     PreArg6 pa6) {
   return new FunctionClosure_Arg1_Bind6<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
@@ -2988,12 +3122,12 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6>
-ClosureFunc<R (Arg7)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
+ClosureFunc<R(Arg7)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5,
     PreArg6 pa6) {
-  return ClosureFunc<R (Arg7)>(NewPermanentClosure(function, pa1, pa2, pa3,
-      pa4, pa5, pa6));
+  return ClosureFunc<R(Arg7)>(NewPermanentClosure(function, pa1, pa2, pa3, pa4,
+      pa5, pa6));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -3006,7 +3140,7 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename PreArg1,
       typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
       typename PreArg6>
-class FunctorClosure_Arg1_Bind6 : public Closure<R (Arg7)> {
+class FunctorClosure_Arg1_Bind6 : public Closure<R(Arg7)> {
 public:
   explicit FunctorClosure_Arg1_Bind6(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6)
@@ -3021,7 +3155,7 @@ public:
         FunctorClosure_Arg1_Bind6> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_, arg7);
   }
-  virtual Closure<R (Arg7)>* Clone() {
+  virtual Closure<R(Arg7)>* Clone() {
     return new FunctorClosure_Arg1_Bind6(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -3039,7 +3173,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6, typename F>
-Closure<R (Arg7)>*
+Closure<R(Arg7)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
   return new FunctorClosure_Arg1_Bind6<false, typename std::decay<F>::type, R,
@@ -3052,7 +3186,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6, typename F>
-Closure<R (Arg7)>*
+Closure<R(Arg7)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new FunctorClosure_Arg1_Bind6<true, typename std::decay<F>::type, R,
@@ -3065,10 +3199,10 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6, typename F>
-ClosureFunc<R (Arg7)>
+ClosureFunc<R(Arg7)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
-  return ClosureFunc<R (Arg7)>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4,
+  return ClosureFunc<R(Arg7)>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4,
       Arg5, Arg6, Arg7, PreArg1, PreArg2, PreArg3, PreArg4, PreArg5,
       PreArg6>(std::forward<F>(functor), pa1, pa2, pa3, pa4, pa5, pa6));
 }
@@ -3082,9 +3216,9 @@ template <
   typename R,
   typename Class,
   typename MethodClass, typename Arg1, typename Arg2 >
-class MethodClosure_Arg2_Bind0 : public Closure<R (Arg1, Arg2)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2);
-public:
+class MethodClosure_Arg2_Bind0 : public Closure<R(Arg1, Arg2)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2);
   MethodClosure_Arg2_Bind0(Class *object, MethodType method):
     object_(object), method_(method) {}
   virtual R Run(Arg1 arg1, Arg2 arg2) {
@@ -3092,35 +3226,35 @@ public:
         MethodClosure_Arg2_Bind0> self_deleter(this);
     return (object_->*method_)(arg1, arg2);
   }
-  virtual Closure<R (Arg1, Arg2)>* Clone() {
+  virtual Closure<R(Arg1, Arg2)>* Clone() {
     return new MethodClosure_Arg2_Bind0(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
 };
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2>
-Closure<R (Arg1, Arg2)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2)) {
+Closure<R(Arg1, Arg2)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2)) {
   return new MethodClosure_Arg2_Bind0<false, R, Class, MethodClass, Arg1, Arg2>(
     object, method);
 }
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2>
-Closure<R (Arg1, Arg2)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2)) {
+Closure<R(Arg1, Arg2)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2)) {
   return new MethodClosure_Arg2_Bind0<true, R, Class, MethodClass, Arg1, Arg2>(
     object, method);
 }
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2>
-ClosureFunc<R (Arg1, Arg2)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2)) {
+ClosureFunc<R(Arg1, Arg2)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2)) {
   return ClosureFunc<R (Arg1, Arg2)>(NewPermanentClosure(object, method));
 }
 
@@ -3131,9 +3265,9 @@ BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2)) {
 template <
   bool Permanent,
   typename R, typename Arg1, typename Arg2>
-class FunctionClosure_Arg2_Bind0 : public Closure<R (Arg1, Arg2)> {
-  typedef R (*FunctionType)(Arg1, Arg2);
-public:
+class FunctionClosure_Arg2_Bind0 : public Closure<R(Arg1, Arg2)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2);
   FunctionClosure_Arg2_Bind0(FunctionType function):
     function_(function) {}
   virtual R Run(Arg1 arg1, Arg2 arg2) {
@@ -3141,30 +3275,30 @@ public:
         FunctionClosure_Arg2_Bind0> self_deleter(this);
     return function_(arg1, arg2);
   }
-  virtual Closure<R (Arg1, Arg2)>* Clone() {
+  virtual Closure<R(Arg1, Arg2)>* Clone() {
     return new FunctionClosure_Arg2_Bind0(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
 };
 
 template <typename R, typename Arg1, typename Arg2>
-Closure<R (Arg1, Arg2)>*
-NewClosure(R (*function)(Arg1, Arg2)) {
+Closure<R(Arg1, Arg2)>*
+NewClosure(R(*function)(Arg1, Arg2)) {
   return new FunctionClosure_Arg2_Bind0<false, R, Arg1, Arg2>(function);
 }
 
 template <typename R, typename Arg1, typename Arg2>
-Closure<R (Arg1, Arg2)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2)) {
+Closure<R(Arg1, Arg2)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2)) {
   return new FunctionClosure_Arg2_Bind0<true, R, Arg1, Arg2>(function);
 }
 
 template <typename R, typename Arg1, typename Arg2>
-ClosureFunc<R (Arg1, Arg2)>
-BindClosure(R (*function)(Arg1, Arg2)) {
-  return ClosureFunc<R (Arg1, Arg2)>(NewPermanentClosure(function));
+ClosureFunc<R(Arg1, Arg2)>
+BindClosure(R(*function)(Arg1, Arg2)) {
+  return ClosureFunc<R(Arg1, Arg2)>(NewPermanentClosure(function));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -3174,7 +3308,7 @@ BindClosure(R (*function)(Arg1, Arg2)) {
 template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2>
-class FunctorClosure_Arg2_Bind0 : public Closure<R (Arg1, Arg2)> {
+class FunctorClosure_Arg2_Bind0 : public Closure<R(Arg1, Arg2)> {
 public:
   explicit FunctorClosure_Arg2_Bind0(const F& functor)
     : functor_(functor) {}
@@ -3185,7 +3319,7 @@ public:
         FunctorClosure_Arg2_Bind0> self_deleter(this);
     return functor_(arg1, arg2);
   }
-  virtual Closure<R (Arg1, Arg2)>* Clone() {
+  virtual Closure<R(Arg1, Arg2)>* Clone() {
     return new FunctorClosure_Arg2_Bind0(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -3194,7 +3328,7 @@ private:
 };
 
 template <typename R, typename Arg1, typename Arg2, typename F>
-Closure<R (Arg1, Arg2)>*
+Closure<R(Arg1, Arg2)>*
 NewClosure(F&& functor) {
   return new FunctorClosure_Arg2_Bind0<false, typename std::decay<F>::type, R,
       Arg1, Arg2>(
@@ -3202,7 +3336,7 @@ NewClosure(F&& functor) {
 }
 
 template <typename R, typename Arg1, typename Arg2, typename F>
-Closure<R (Arg1, Arg2)>*
+Closure<R(Arg1, Arg2)>*
 NewPermanentClosure(F&& functor) {
   return new FunctorClosure_Arg2_Bind0<true, typename std::decay<F>::type, R,
       Arg1, Arg2>(
@@ -3210,9 +3344,9 @@ NewPermanentClosure(F&& functor) {
 }
 
 template <typename R, typename Arg1, typename Arg2, typename F>
-ClosureFunc<R (Arg1, Arg2)>
+ClosureFunc<R(Arg1, Arg2)>
 BindClosure(F&& functor) {
-  return ClosureFunc<R (Arg1, Arg2)>(NewPermanentClosure<R, Arg1,
+  return ClosureFunc<R(Arg1, Arg2)>(NewPermanentClosure<R, Arg1,
       Arg2>(std::forward<F>(functor)));
 }
 
@@ -3226,9 +3360,9 @@ template <
   typename Class,
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3 ,
       typename PreArg1>
-class MethodClosure_Arg2_Bind1 : public Closure<R (Arg2, Arg3)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3);
-public:
+class MethodClosure_Arg2_Bind1 : public Closure<R(Arg2, Arg3)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3);
   MethodClosure_Arg2_Bind1(Class *object, MethodType method, PreArg1 pa1):
     object_(object), method_(method), pa_1_(pa1) {}
   virtual R Run(Arg2 arg2, Arg3 arg3) {
@@ -3236,11 +3370,11 @@ public:
         MethodClosure_Arg2_Bind1> self_deleter(this);
     return (object_->*method_)(pa_1_, arg2, arg3);
   }
-  virtual Closure<R (Arg2, Arg3)>* Clone() {
+  virtual Closure<R(Arg2, Arg3)>* Clone() {
     return new MethodClosure_Arg2_Bind1(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -3248,8 +3382,8 @@ private:
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename PreArg1>
-Closure<R (Arg2, Arg3)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3),
+Closure<R(Arg2, Arg3)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3),
     PreArg1 pa1) {
   return new MethodClosure_Arg2_Bind1<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, PreArg1>(
@@ -3258,8 +3392,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3),
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename PreArg1>
-Closure<R (Arg2, Arg3)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3),
+Closure<R(Arg2, Arg3)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3),
     PreArg1 pa1) {
   return new MethodClosure_Arg2_Bind1<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, PreArg1>(
@@ -3268,8 +3402,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3),
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename PreArg1>
-ClosureFunc<R (Arg2, Arg3)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3),
+ClosureFunc<R(Arg2, Arg3)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3),
     PreArg1 pa1) {
   return ClosureFunc<R (Arg2, Arg3)>(NewPermanentClosure(object, method, pa1));
 }
@@ -3281,9 +3415,9 @@ BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3),
 template <
   bool Permanent,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename PreArg1>
-class FunctionClosure_Arg2_Bind1 : public Closure<R (Arg2, Arg3)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3);
-public:
+class FunctionClosure_Arg2_Bind1 : public Closure<R(Arg2, Arg3)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3);
   FunctionClosure_Arg2_Bind1(FunctionType function, PreArg1 pa1):
     function_(function), pa_1_(pa1) {}
   virtual R Run(Arg2 arg2, Arg3 arg3) {
@@ -3291,36 +3425,36 @@ public:
         FunctionClosure_Arg2_Bind1> self_deleter(this);
     return function_(pa_1_, arg2, arg3);
   }
-  virtual Closure<R (Arg2, Arg3)>* Clone() {
+  virtual Closure<R(Arg2, Arg3)>* Clone() {
     return new FunctionClosure_Arg2_Bind1(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
 };
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename PreArg1>
-Closure<R (Arg2, Arg3)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3), PreArg1 pa1) {
+Closure<R(Arg2, Arg3)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3), PreArg1 pa1) {
   return new FunctionClosure_Arg2_Bind1<false, R, Arg1, Arg2, Arg3,
       PreArg1>(function, pa1);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename PreArg1>
-Closure<R (Arg2, Arg3)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3), PreArg1 pa1) {
+Closure<R(Arg2, Arg3)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3), PreArg1 pa1) {
   return new FunctionClosure_Arg2_Bind1<true, R, Arg1, Arg2, Arg3,
       PreArg1>(function, pa1);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename PreArg1>
-ClosureFunc<R (Arg2, Arg3)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3), PreArg1 pa1) {
-  return ClosureFunc<R (Arg2, Arg3)>(NewPermanentClosure(function, pa1));
+ClosureFunc<R(Arg2, Arg3)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3), PreArg1 pa1) {
+  return ClosureFunc<R(Arg2, Arg3)>(NewPermanentClosure(function, pa1));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -3330,7 +3464,7 @@ BindClosure(R (*function)(Arg1, Arg2, Arg3), PreArg1 pa1) {
 template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename PreArg1>
-class FunctorClosure_Arg2_Bind1 : public Closure<R (Arg2, Arg3)> {
+class FunctorClosure_Arg2_Bind1 : public Closure<R(Arg2, Arg3)> {
 public:
   explicit FunctorClosure_Arg2_Bind1(const F& functor, PreArg1 pa1)
     : functor_(functor), pa_1_(pa1) {}
@@ -3341,7 +3475,7 @@ public:
         FunctorClosure_Arg2_Bind1> self_deleter(this);
     return functor_(pa_1_, arg2, arg3);
   }
-  virtual Closure<R (Arg2, Arg3)>* Clone() {
+  virtual Closure<R(Arg2, Arg3)>* Clone() {
     return new FunctorClosure_Arg2_Bind1(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -3352,7 +3486,7 @@ private:
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename PreArg1, typename F>
-Closure<R (Arg2, Arg3)>*
+Closure<R(Arg2, Arg3)>*
 NewClosure(F&& functor, PreArg1 pa1) {
   return new FunctorClosure_Arg2_Bind1<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, PreArg1>(
@@ -3361,7 +3495,7 @@ NewClosure(F&& functor, PreArg1 pa1) {
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename PreArg1, typename F>
-Closure<R (Arg2, Arg3)>*
+Closure<R(Arg2, Arg3)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1) {
   return new FunctorClosure_Arg2_Bind1<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, PreArg1>(
@@ -3370,9 +3504,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1) {
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename PreArg1, typename F>
-ClosureFunc<R (Arg2, Arg3)>
+ClosureFunc<R(Arg2, Arg3)>
 BindClosure(F&& functor, PreArg1 pa1) {
-  return ClosureFunc<R (Arg2, Arg3)>(NewPermanentClosure<R, Arg1, Arg2, Arg3,
+  return ClosureFunc<R(Arg2, Arg3)>(NewPermanentClosure<R, Arg1, Arg2, Arg3,
       PreArg1>(std::forward<F>(functor), pa1));
 }
 
@@ -3386,9 +3520,9 @@ template <
   typename Class,
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4 , typename PreArg1, typename PreArg2>
-class MethodClosure_Arg2_Bind2 : public Closure<R (Arg3, Arg4)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4);
-public:
+class MethodClosure_Arg2_Bind2 : public Closure<R(Arg3, Arg4)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4);
   MethodClosure_Arg2_Bind2(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2) {}
@@ -3397,11 +3531,11 @@ public:
         MethodClosure_Arg2_Bind2> self_deleter(this);
     return (object_->*method_)(pa_1_, pa_2_, arg3, arg4);
   }
-  virtual Closure<R (Arg3, Arg4)>* Clone() {
+  virtual Closure<R(Arg3, Arg4)>* Clone() {
     return new MethodClosure_Arg2_Bind2(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -3411,8 +3545,8 @@ private:
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename PreArg1,
     typename PreArg2>
-Closure<R (Arg3, Arg4)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4),
+Closure<R(Arg3, Arg4)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4),
     PreArg1 pa1, PreArg2 pa2) {
   return new MethodClosure_Arg2_Bind2<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, PreArg1, PreArg2>(
@@ -3422,8 +3556,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4),
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename PreArg1,
     typename PreArg2>
-Closure<R (Arg3, Arg4)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg3, Arg4)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4), PreArg1 pa1, PreArg2 pa2) {
   return new MethodClosure_Arg2_Bind2<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, PreArg1, PreArg2>(
@@ -3433,8 +3567,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename PreArg1,
     typename PreArg2>
-ClosureFunc<R (Arg3, Arg4)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4),
+ClosureFunc<R(Arg3, Arg4)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4),
     PreArg1 pa1, PreArg2 pa2) {
   return ClosureFunc<R (Arg3, Arg4)>(NewPermanentClosure(object, method, pa1,
       pa2));
@@ -3448,9 +3582,9 @@ template <
   bool Permanent,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename PreArg1, typename PreArg2>
-class FunctionClosure_Arg2_Bind2 : public Closure<R (Arg3, Arg4)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4);
-public:
+class FunctionClosure_Arg2_Bind2 : public Closure<R(Arg3, Arg4)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4);
   FunctionClosure_Arg2_Bind2(FunctionType function, PreArg1 pa1, PreArg2 pa2):
     function_(function), pa_1_(pa1), pa_2_(pa2) {}
   virtual R Run(Arg3 arg3, Arg4 arg4) {
@@ -3458,11 +3592,11 @@ public:
         FunctionClosure_Arg2_Bind2> self_deleter(this);
     return function_(pa_1_, pa_2_, arg3, arg4);
   }
-  virtual Closure<R (Arg3, Arg4)>* Clone() {
+  virtual Closure<R(Arg3, Arg4)>* Clone() {
     return new FunctionClosure_Arg2_Bind2(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -3470,16 +3604,16 @@ private:
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename PreArg2>
-Closure<R (Arg3, Arg4)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1, PreArg2 pa2) {
+Closure<R(Arg3, Arg4)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1, PreArg2 pa2) {
   return new FunctionClosure_Arg2_Bind2<false, R, Arg1, Arg2, Arg3, Arg4,
       PreArg1, PreArg2>(function, pa1, pa2);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename PreArg2>
-Closure<R (Arg3, Arg4)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1,
+Closure<R(Arg3, Arg4)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1,
     PreArg2 pa2) {
   return new FunctionClosure_Arg2_Bind2<true, R, Arg1, Arg2, Arg3, Arg4,
       PreArg1, PreArg2>(function, pa1, pa2);
@@ -3487,9 +3621,9 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1,
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename PreArg2>
-ClosureFunc<R (Arg3, Arg4)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1, PreArg2 pa2) {
-  return ClosureFunc<R (Arg3, Arg4)>(NewPermanentClosure(function, pa1, pa2));
+ClosureFunc<R(Arg3, Arg4)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1, PreArg2 pa2) {
+  return ClosureFunc<R(Arg3, Arg4)>(NewPermanentClosure(function, pa1, pa2));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -3500,7 +3634,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename PreArg1, typename PreArg2>
-class FunctorClosure_Arg2_Bind2 : public Closure<R (Arg3, Arg4)> {
+class FunctorClosure_Arg2_Bind2 : public Closure<R(Arg3, Arg4)> {
 public:
   explicit FunctorClosure_Arg2_Bind2(const F& functor, PreArg1 pa1, PreArg2 pa2)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2) {}
@@ -3511,7 +3645,7 @@ public:
         FunctorClosure_Arg2_Bind2> self_deleter(this);
     return functor_(pa_1_, pa_2_, arg3, arg4);
   }
-  virtual Closure<R (Arg3, Arg4)>* Clone() {
+  virtual Closure<R(Arg3, Arg4)>* Clone() {
     return new FunctorClosure_Arg2_Bind2(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -3523,7 +3657,7 @@ private:
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename PreArg2, typename F>
-Closure<R (Arg3, Arg4)>*
+Closure<R(Arg3, Arg4)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
   return new FunctorClosure_Arg2_Bind2<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, PreArg1, PreArg2>(
@@ -3532,7 +3666,7 @@ NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename PreArg2, typename F>
-Closure<R (Arg3, Arg4)>*
+Closure<R(Arg3, Arg4)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
   return new FunctorClosure_Arg2_Bind2<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, PreArg1, PreArg2>(
@@ -3541,9 +3675,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename PreArg2, typename F>
-ClosureFunc<R (Arg3, Arg4)>
+ClosureFunc<R(Arg3, Arg4)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
-  return ClosureFunc<R (Arg3, Arg4)>(NewPermanentClosure<R, Arg1, Arg2, Arg3,
+  return ClosureFunc<R(Arg3, Arg4)>(NewPermanentClosure<R, Arg1, Arg2, Arg3,
       Arg4, PreArg1, PreArg2>(std::forward<F>(functor), pa1, pa2));
 }
 
@@ -3558,9 +3692,9 @@ template <
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4, typename Arg5 , typename PreArg1, typename PreArg2,
       typename PreArg3>
-class MethodClosure_Arg2_Bind3 : public Closure<R (Arg4, Arg5)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5);
-public:
+class MethodClosure_Arg2_Bind3 : public Closure<R(Arg4, Arg5)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5);
   MethodClosure_Arg2_Bind3(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -3569,11 +3703,11 @@ public:
         MethodClosure_Arg2_Bind3> self_deleter(this);
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, arg4, arg5);
   }
-  virtual Closure<R (Arg4, Arg5)>* Clone() {
+  virtual Closure<R(Arg4, Arg5)>* Clone() {
     return new MethodClosure_Arg2_Bind3(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -3584,8 +3718,8 @@ private:
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5,
     typename PreArg1, typename PreArg2, typename PreArg3>
-Closure<R (Arg4, Arg5)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+Closure<R(Arg4, Arg5)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new MethodClosure_Arg2_Bind3<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, PreArg1, PreArg2, PreArg3>(
@@ -3595,8 +3729,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5,
     typename PreArg1, typename PreArg2, typename PreArg3>
-Closure<R (Arg4, Arg5)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg4, Arg5)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new MethodClosure_Arg2_Bind3<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, PreArg1, PreArg2, PreArg3>(
@@ -3606,8 +3740,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5,
     typename PreArg1, typename PreArg2, typename PreArg3>
-ClosureFunc<R (Arg4, Arg5)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg4, Arg5)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return ClosureFunc<R (Arg4, Arg5)>(NewPermanentClosure(object, method, pa1,
       pa2, pa3));
@@ -3621,9 +3755,9 @@ template <
   bool Permanent,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename PreArg1, typename PreArg2, typename PreArg3>
-class FunctionClosure_Arg2_Bind3 : public Closure<R (Arg4, Arg5)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5);
-public:
+class FunctionClosure_Arg2_Bind3 : public Closure<R(Arg4, Arg5)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5);
   FunctionClosure_Arg2_Bind3(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -3632,11 +3766,11 @@ public:
         FunctionClosure_Arg2_Bind3> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_, arg4, arg5);
   }
-  virtual Closure<R (Arg4, Arg5)>* Clone() {
+  virtual Closure<R(Arg4, Arg5)>* Clone() {
     return new FunctionClosure_Arg2_Bind3(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -3646,8 +3780,8 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename PreArg3>
-Closure<R (Arg4, Arg5)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
+Closure<R(Arg4, Arg5)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3) {
   return new FunctionClosure_Arg2_Bind3<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       PreArg1, PreArg2, PreArg3>(function, pa1, pa2, pa3);
@@ -3656,8 +3790,8 @@ NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename PreArg3>
-Closure<R (Arg4, Arg5)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
+Closure<R(Arg4, Arg5)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3) {
   return new FunctionClosure_Arg2_Bind3<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       PreArg1, PreArg2, PreArg3>(function, pa1, pa2, pa3);
@@ -3666,10 +3800,10 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename PreArg3>
-ClosureFunc<R (Arg4, Arg5)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
+ClosureFunc<R(Arg4, Arg5)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3) {
-  return ClosureFunc<R (Arg4, Arg5)>(NewPermanentClosure(function, pa1, pa2,
+  return ClosureFunc<R(Arg4, Arg5)>(NewPermanentClosure(function, pa1, pa2,
       pa3));
 }
 
@@ -3681,7 +3815,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename PreArg1, typename PreArg2, typename PreArg3>
-class FunctorClosure_Arg2_Bind3 : public Closure<R (Arg4, Arg5)> {
+class FunctorClosure_Arg2_Bind3 : public Closure<R(Arg4, Arg5)> {
 public:
   explicit FunctorClosure_Arg2_Bind3(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3)
@@ -3694,7 +3828,7 @@ public:
         FunctorClosure_Arg2_Bind3> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, arg4, arg5);
   }
-  virtual Closure<R (Arg4, Arg5)>* Clone() {
+  virtual Closure<R(Arg4, Arg5)>* Clone() {
     return new FunctorClosure_Arg2_Bind3(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -3708,7 +3842,7 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename PreArg3, typename F>
-Closure<R (Arg4, Arg5)>*
+Closure<R(Arg4, Arg5)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new FunctorClosure_Arg2_Bind3<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, PreArg1, PreArg2, PreArg3>(
@@ -3718,7 +3852,7 @@ NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename PreArg3, typename F>
-Closure<R (Arg4, Arg5)>*
+Closure<R(Arg4, Arg5)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new FunctorClosure_Arg2_Bind3<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, PreArg1, PreArg2, PreArg3>(
@@ -3728,9 +3862,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename PreArg3, typename F>
-ClosureFunc<R (Arg4, Arg5)>
+ClosureFunc<R(Arg4, Arg5)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
-  return ClosureFunc<R (Arg4, Arg5)>(NewPermanentClosure<R, Arg1, Arg2, Arg3,
+  return ClosureFunc<R(Arg4, Arg5)>(NewPermanentClosure<R, Arg1, Arg2, Arg3,
       Arg4, Arg5, PreArg1, PreArg2, PreArg3>(std::forward<F>(functor), pa1,
       pa2, pa3));
 }
@@ -3746,9 +3880,9 @@ template <
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4, typename Arg5, typename Arg6 , typename PreArg1,
       typename PreArg2, typename PreArg3, typename PreArg4>
-class MethodClosure_Arg2_Bind4 : public Closure<R (Arg5, Arg6)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
-public:
+class MethodClosure_Arg2_Bind4 : public Closure<R(Arg5, Arg6)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
   MethodClosure_Arg2_Bind4(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -3758,11 +3892,11 @@ public:
         MethodClosure_Arg2_Bind4> self_deleter(this);
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_, arg5, arg6);
   }
-  virtual Closure<R (Arg5, Arg6)>* Clone() {
+  virtual Closure<R(Arg5, Arg6)>* Clone() {
     return new MethodClosure_Arg2_Bind4(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -3774,9 +3908,9 @@ private:
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
-Closure<R (Arg5, Arg6)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
+Closure<R(Arg5, Arg6)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new MethodClosure_Arg2_Bind4<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, PreArg1, PreArg2, PreArg3, PreArg4>(
     object, method, pa1, pa2, pa3, pa4);
@@ -3785,8 +3919,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
-Closure<R (Arg5, Arg6)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg5, Arg6)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new MethodClosure_Arg2_Bind4<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, PreArg1, PreArg2, PreArg3, PreArg4>(
@@ -3796,8 +3930,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
-ClosureFunc<R (Arg5, Arg6)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg5, Arg6)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return ClosureFunc<R (Arg5, Arg6)>(NewPermanentClosure(object, method, pa1,
       pa2, pa3, pa4));
@@ -3812,9 +3946,9 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4>
-class FunctionClosure_Arg2_Bind4 : public Closure<R (Arg5, Arg6)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
-public:
+class FunctionClosure_Arg2_Bind4 : public Closure<R(Arg5, Arg6)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
   FunctionClosure_Arg2_Bind4(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4) {}
@@ -3823,11 +3957,11 @@ public:
         FunctionClosure_Arg2_Bind4> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_, pa_4_, arg5, arg6);
   }
-  virtual Closure<R (Arg5, Arg6)>* Clone() {
+  virtual Closure<R(Arg5, Arg6)>* Clone() {
     return new FunctionClosure_Arg2_Bind4(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -3838,8 +3972,8 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4>
-Closure<R (Arg5, Arg6)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
+Closure<R(Arg5, Arg6)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new FunctionClosure_Arg2_Bind4<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, PreArg1, PreArg2, PreArg3, PreArg4>(function, pa1, pa2, pa3, pa4);
@@ -3848,8 +3982,8 @@ NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4>
-Closure<R (Arg5, Arg6)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6),
+Closure<R(Arg5, Arg6)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new FunctionClosure_Arg2_Bind4<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, PreArg1, PreArg2, PreArg3, PreArg4>(function, pa1, pa2, pa3, pa4);
@@ -3858,10 +3992,10 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6),
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4>
-ClosureFunc<R (Arg5, Arg6)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
+ClosureFunc<R(Arg5, Arg6)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
-  return ClosureFunc<R (Arg5, Arg6)>(NewPermanentClosure(function, pa1, pa2,
+  return ClosureFunc<R(Arg5, Arg6)>(NewPermanentClosure(function, pa1, pa2,
       pa3, pa4));
 }
 
@@ -3874,7 +4008,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4>
-class FunctorClosure_Arg2_Bind4 : public Closure<R (Arg5, Arg6)> {
+class FunctorClosure_Arg2_Bind4 : public Closure<R(Arg5, Arg6)> {
 public:
   explicit FunctorClosure_Arg2_Bind4(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4)
@@ -3888,7 +4022,7 @@ public:
         FunctorClosure_Arg2_Bind4> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_, arg5, arg6);
   }
-  virtual Closure<R (Arg5, Arg6)>* Clone() {
+  virtual Closure<R(Arg5, Arg6)>* Clone() {
     return new FunctorClosure_Arg2_Bind4(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -3903,7 +4037,7 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename F>
-Closure<R (Arg5, Arg6)>*
+Closure<R(Arg5, Arg6)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new FunctorClosure_Arg2_Bind4<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, PreArg1, PreArg2, PreArg3, PreArg4>(
@@ -3913,7 +4047,7 @@ NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename F>
-Closure<R (Arg5, Arg6)>*
+Closure<R(Arg5, Arg6)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4) {
   return new FunctorClosure_Arg2_Bind4<true, typename std::decay<F>::type, R,
@@ -3924,9 +4058,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename F>
-ClosureFunc<R (Arg5, Arg6)>
+ClosureFunc<R(Arg5, Arg6)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
-  return ClosureFunc<R (Arg5, Arg6)>(NewPermanentClosure<R, Arg1, Arg2, Arg3,
+  return ClosureFunc<R(Arg5, Arg6)>(NewPermanentClosure<R, Arg1, Arg2, Arg3,
       Arg4, Arg5, Arg6, PreArg1, PreArg2, PreArg3,
       PreArg4>(std::forward<F>(functor), pa1, pa2, pa3, pa4));
 }
@@ -3943,10 +4077,9 @@ template <
       typename Arg4, typename Arg5, typename Arg6, typename Arg7 ,
       typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
       typename PreArg5>
-class MethodClosure_Arg2_Bind5 : public Closure<R (Arg6, Arg7)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7);
-public:
+class MethodClosure_Arg2_Bind5 : public Closure<R(Arg6, Arg7)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7);
   MethodClosure_Arg2_Bind5(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -3956,11 +4089,11 @@ public:
         MethodClosure_Arg2_Bind5> self_deleter(this);
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, arg6, arg7);
   }
-  virtual Closure<R (Arg6, Arg7)>* Clone() {
+  virtual Closure<R(Arg6, Arg7)>* Clone() {
     return new MethodClosure_Arg2_Bind5(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -3974,9 +4107,9 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5>
-Closure<R (Arg6, Arg7)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
+Closure<R(Arg6, Arg7)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
   return new MethodClosure_Arg2_Bind5<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, PreArg1, PreArg2, PreArg3, PreArg4,
@@ -3988,8 +4121,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5>
-Closure<R (Arg6, Arg7)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg6, Arg7)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5) {
   return new MethodClosure_Arg2_Bind5<true, R, Class, MethodClass, Arg1, Arg2,
@@ -4002,8 +4135,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5>
-ClosureFunc<R (Arg6, Arg7)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg6, Arg7)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
   return ClosureFunc<R (Arg6, Arg7)>(NewPermanentClosure(object, method, pa1,
@@ -4019,9 +4152,9 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename Arg7, typename PreArg1,
       typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5>
-class FunctionClosure_Arg2_Bind5 : public Closure<R (Arg6, Arg7)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7);
-public:
+class FunctionClosure_Arg2_Bind5 : public Closure<R(Arg6, Arg7)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7);
   FunctionClosure_Arg2_Bind5(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4, PreArg5 pa5):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -4031,11 +4164,11 @@ public:
         FunctionClosure_Arg2_Bind5> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, arg6, arg7);
   }
-  virtual Closure<R (Arg6, Arg7)>* Clone() {
+  virtual Closure<R(Arg6, Arg7)>* Clone() {
     return new FunctionClosure_Arg2_Bind5(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -4048,9 +4181,9 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5>
-Closure<R (Arg6, Arg7)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
-    PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
+Closure<R(Arg6, Arg7)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7), PreArg1 pa1,
+    PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
   return new FunctionClosure_Arg2_Bind5<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, PreArg1, PreArg2, PreArg3, PreArg4, PreArg5>(function, pa1,
       pa2, pa3, pa4, pa5);
@@ -4060,8 +4193,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5>
-Closure<R (Arg6, Arg7)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
+Closure<R(Arg6, Arg7)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
   return new FunctionClosure_Arg2_Bind5<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, PreArg1, PreArg2, PreArg3, PreArg4, PreArg5>(function, pa1,
@@ -4072,10 +4205,10 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5>
-ClosureFunc<R (Arg6, Arg7)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
+ClosureFunc<R(Arg6, Arg7)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
-  return ClosureFunc<R (Arg6, Arg7)>(NewPermanentClosure(function, pa1, pa2,
+  return ClosureFunc<R(Arg6, Arg7)>(NewPermanentClosure(function, pa1, pa2,
       pa3, pa4, pa5));
 }
 
@@ -4088,7 +4221,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename Arg7, typename PreArg1,
       typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5>
-class FunctorClosure_Arg2_Bind5 : public Closure<R (Arg6, Arg7)> {
+class FunctorClosure_Arg2_Bind5 : public Closure<R(Arg6, Arg7)> {
 public:
   explicit FunctorClosure_Arg2_Bind5(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5)
@@ -4103,7 +4236,7 @@ public:
         FunctorClosure_Arg2_Bind5> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, arg6, arg7);
   }
-  virtual Closure<R (Arg6, Arg7)>* Clone() {
+  virtual Closure<R(Arg6, Arg7)>* Clone() {
     return new FunctorClosure_Arg2_Bind5(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -4120,7 +4253,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename F>
-Closure<R (Arg6, Arg7)>*
+Closure<R(Arg6, Arg7)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
   return new FunctorClosure_Arg2_Bind5<false, typename std::decay<F>::type, R,
@@ -4133,7 +4266,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename F>
-Closure<R (Arg6, Arg7)>*
+Closure<R(Arg6, Arg7)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5) {
   return new FunctorClosure_Arg2_Bind5<true, typename std::decay<F>::type, R,
@@ -4146,10 +4279,10 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename F>
-ClosureFunc<R (Arg6, Arg7)>
+ClosureFunc<R(Arg6, Arg7)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
-  return ClosureFunc<R (Arg6, Arg7)>(NewPermanentClosure<R, Arg1, Arg2, Arg3,
+  return ClosureFunc<R(Arg6, Arg7)>(NewPermanentClosure<R, Arg1, Arg2, Arg3,
       Arg4, Arg5, Arg6, Arg7, PreArg1, PreArg2, PreArg3, PreArg4,
       PreArg5>(std::forward<F>(functor), pa1, pa2, pa3, pa4, pa5));
 }
@@ -4166,10 +4299,10 @@ template <
       typename Arg4, typename Arg5, typename Arg6, typename Arg7,
       typename Arg8 , typename PreArg1, typename PreArg2, typename PreArg3,
       typename PreArg4, typename PreArg5, typename PreArg6>
-class MethodClosure_Arg2_Bind6 : public Closure<R (Arg7, Arg8)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7, Arg8);
-public:
+class MethodClosure_Arg2_Bind6 : public Closure<R(Arg7, Arg8)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+      Arg8);
   MethodClosure_Arg2_Bind6(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -4180,11 +4313,11 @@ public:
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_, arg7,
         arg8);
   }
-  virtual Closure<R (Arg7, Arg8)>* Clone() {
+  virtual Closure<R(Arg7, Arg8)>* Clone() {
     return new MethodClosure_Arg2_Bind6(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -4199,10 +4332,10 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5, typename PreArg6>
-Closure<R (Arg7, Arg8)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7, Arg8), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
-    PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
+Closure<R(Arg7, Arg8)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7, Arg8), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
+    PreArg5 pa5, PreArg6 pa6) {
   return new MethodClosure_Arg2_Bind6<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, PreArg1, PreArg2, PreArg3, PreArg4,
       PreArg5, PreArg6>(
@@ -4213,8 +4346,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5, typename PreArg6>
-Closure<R (Arg7, Arg8)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg7, Arg8)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7, Arg8), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new MethodClosure_Arg2_Bind6<true, R, Class, MethodClass, Arg1, Arg2,
@@ -4227,8 +4360,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5, typename PreArg6>
-ClosureFunc<R (Arg7, Arg8)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg7, Arg8)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7, Arg8), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return ClosureFunc<R (Arg7, Arg8)>(NewPermanentClosure(object, method, pa1,
@@ -4245,9 +4378,9 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
       typename PreArg5, typename PreArg6>
-class FunctionClosure_Arg2_Bind6 : public Closure<R (Arg7, Arg8)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8);
-public:
+class FunctionClosure_Arg2_Bind6 : public Closure<R(Arg7, Arg8)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8);
   FunctionClosure_Arg2_Bind6(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -4257,11 +4390,11 @@ public:
         FunctionClosure_Arg2_Bind6> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_, arg7, arg8);
   }
-  virtual Closure<R (Arg7, Arg8)>* Clone() {
+  virtual Closure<R(Arg7, Arg8)>* Clone() {
     return new FunctionClosure_Arg2_Bind6(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -4275,8 +4408,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6>
-Closure<R (Arg7, Arg8)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
+Closure<R(Arg7, Arg8)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5,
     PreArg6 pa6) {
   return new FunctionClosure_Arg2_Bind6<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
@@ -4288,8 +4421,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6>
-Closure<R (Arg7, Arg8)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+Closure<R(Arg7, Arg8)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
     Arg8), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5,
     PreArg6 pa6) {
   return new FunctionClosure_Arg2_Bind6<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
@@ -4301,11 +4434,11 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6>
-ClosureFunc<R (Arg7, Arg8)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
+ClosureFunc<R(Arg7, Arg8)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5,
     PreArg6 pa6) {
-  return ClosureFunc<R (Arg7, Arg8)>(NewPermanentClosure(function, pa1, pa2,
+  return ClosureFunc<R(Arg7, Arg8)>(NewPermanentClosure(function, pa1, pa2,
       pa3, pa4, pa5, pa6));
 }
 
@@ -4319,7 +4452,7 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
       typename PreArg5, typename PreArg6>
-class FunctorClosure_Arg2_Bind6 : public Closure<R (Arg7, Arg8)> {
+class FunctorClosure_Arg2_Bind6 : public Closure<R(Arg7, Arg8)> {
 public:
   explicit FunctorClosure_Arg2_Bind6(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6)
@@ -4334,7 +4467,7 @@ public:
         FunctorClosure_Arg2_Bind6> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_, arg7, arg8);
   }
-  virtual Closure<R (Arg7, Arg8)>* Clone() {
+  virtual Closure<R(Arg7, Arg8)>* Clone() {
     return new FunctorClosure_Arg2_Bind6(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -4352,7 +4485,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6, typename F>
-Closure<R (Arg7, Arg8)>*
+Closure<R(Arg7, Arg8)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
   return new FunctorClosure_Arg2_Bind6<false, typename std::decay<F>::type, R,
@@ -4365,7 +4498,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6, typename F>
-Closure<R (Arg7, Arg8)>*
+Closure<R(Arg7, Arg8)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new FunctorClosure_Arg2_Bind6<true, typename std::decay<F>::type, R,
@@ -4378,10 +4511,10 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6, typename F>
-ClosureFunc<R (Arg7, Arg8)>
+ClosureFunc<R(Arg7, Arg8)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
-  return ClosureFunc<R (Arg7, Arg8)>(NewPermanentClosure<R, Arg1, Arg2, Arg3,
+  return ClosureFunc<R(Arg7, Arg8)>(NewPermanentClosure<R, Arg1, Arg2, Arg3,
       Arg4, Arg5, Arg6, Arg7, Arg8, PreArg1, PreArg2, PreArg3, PreArg4,
       PreArg5, PreArg6>(std::forward<F>(functor), pa1, pa2, pa3, pa4, pa5,
       pa6));
@@ -4396,9 +4529,9 @@ template <
   typename R,
   typename Class,
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3 >
-class MethodClosure_Arg3_Bind0 : public Closure<R (Arg1, Arg2, Arg3)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3);
-public:
+class MethodClosure_Arg3_Bind0 : public Closure<R(Arg1, Arg2, Arg3)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3);
   MethodClosure_Arg3_Bind0(Class *object, MethodType method):
     object_(object), method_(method) {}
   virtual R Run(Arg1 arg1, Arg2 arg2, Arg3 arg3) {
@@ -4406,19 +4539,19 @@ public:
         MethodClosure_Arg3_Bind0> self_deleter(this);
     return (object_->*method_)(arg1, arg2, arg3);
   }
-  virtual Closure<R (Arg1, Arg2, Arg3)>* Clone() {
+  virtual Closure<R(Arg1, Arg2, Arg3)>* Clone() {
     return new MethodClosure_Arg3_Bind0(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
 };
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3>
-Closure<R (Arg1, Arg2, Arg3)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3)) {
+Closure<R(Arg1, Arg2, Arg3)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3)) {
   return new MethodClosure_Arg3_Bind0<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3>(
     object, method);
@@ -4426,8 +4559,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3)) {
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3>
-Closure<R (Arg1, Arg2, Arg3)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3)) {
+Closure<R(Arg1, Arg2, Arg3)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3)) {
   return new MethodClosure_Arg3_Bind0<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3>(
     object, method);
@@ -4435,8 +4568,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3)) {
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3>
-ClosureFunc<R (Arg1, Arg2, Arg3)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3)) {
+ClosureFunc<R(Arg1, Arg2, Arg3)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3)) {
   return ClosureFunc<R (Arg1, Arg2, Arg3)>(NewPermanentClosure(object, method));
 }
 
@@ -4447,9 +4580,9 @@ BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3)) {
 template <
   bool Permanent,
   typename R, typename Arg1, typename Arg2, typename Arg3>
-class FunctionClosure_Arg3_Bind0 : public Closure<R (Arg1, Arg2, Arg3)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3);
-public:
+class FunctionClosure_Arg3_Bind0 : public Closure<R(Arg1, Arg2, Arg3)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3);
   FunctionClosure_Arg3_Bind0(FunctionType function):
     function_(function) {}
   virtual R Run(Arg1 arg1, Arg2 arg2, Arg3 arg3) {
@@ -4457,30 +4590,30 @@ public:
         FunctionClosure_Arg3_Bind0> self_deleter(this);
     return function_(arg1, arg2, arg3);
   }
-  virtual Closure<R (Arg1, Arg2, Arg3)>* Clone() {
+  virtual Closure<R(Arg1, Arg2, Arg3)>* Clone() {
     return new FunctionClosure_Arg3_Bind0(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
 };
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3>
-Closure<R (Arg1, Arg2, Arg3)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3)) {
+Closure<R(Arg1, Arg2, Arg3)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3)) {
   return new FunctionClosure_Arg3_Bind0<false, R, Arg1, Arg2, Arg3>(function);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3>
-Closure<R (Arg1, Arg2, Arg3)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3)) {
+Closure<R(Arg1, Arg2, Arg3)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3)) {
   return new FunctionClosure_Arg3_Bind0<true, R, Arg1, Arg2, Arg3>(function);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3>
-ClosureFunc<R (Arg1, Arg2, Arg3)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3)) {
-  return ClosureFunc<R (Arg1, Arg2, Arg3)>(NewPermanentClosure(function));
+ClosureFunc<R(Arg1, Arg2, Arg3)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3)) {
+  return ClosureFunc<R(Arg1, Arg2, Arg3)>(NewPermanentClosure(function));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -4490,7 +4623,7 @@ BindClosure(R (*function)(Arg1, Arg2, Arg3)) {
 template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename Arg3>
-class FunctorClosure_Arg3_Bind0 : public Closure<R (Arg1, Arg2, Arg3)> {
+class FunctorClosure_Arg3_Bind0 : public Closure<R(Arg1, Arg2, Arg3)> {
 public:
   explicit FunctorClosure_Arg3_Bind0(const F& functor)
     : functor_(functor) {}
@@ -4501,7 +4634,7 @@ public:
         FunctorClosure_Arg3_Bind0> self_deleter(this);
     return functor_(arg1, arg2, arg3);
   }
-  virtual Closure<R (Arg1, Arg2, Arg3)>* Clone() {
+  virtual Closure<R(Arg1, Arg2, Arg3)>* Clone() {
     return new FunctorClosure_Arg3_Bind0(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -4510,7 +4643,7 @@ private:
 };
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3, typename F>
-Closure<R (Arg1, Arg2, Arg3)>*
+Closure<R(Arg1, Arg2, Arg3)>*
 NewClosure(F&& functor) {
   return new FunctorClosure_Arg3_Bind0<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3>(
@@ -4518,7 +4651,7 @@ NewClosure(F&& functor) {
 }
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3, typename F>
-Closure<R (Arg1, Arg2, Arg3)>*
+Closure<R(Arg1, Arg2, Arg3)>*
 NewPermanentClosure(F&& functor) {
   return new FunctorClosure_Arg3_Bind0<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3>(
@@ -4526,9 +4659,9 @@ NewPermanentClosure(F&& functor) {
 }
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3, typename F>
-ClosureFunc<R (Arg1, Arg2, Arg3)>
+ClosureFunc<R(Arg1, Arg2, Arg3)>
 BindClosure(F&& functor) {
-  return ClosureFunc<R (Arg1, Arg2, Arg3)>(NewPermanentClosure<R, Arg1, Arg2,
+  return ClosureFunc<R(Arg1, Arg2, Arg3)>(NewPermanentClosure<R, Arg1, Arg2,
       Arg3>(std::forward<F>(functor)));
 }
 
@@ -4542,9 +4675,9 @@ template <
   typename Class,
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4 , typename PreArg1>
-class MethodClosure_Arg3_Bind1 : public Closure<R (Arg2, Arg3, Arg4)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4);
-public:
+class MethodClosure_Arg3_Bind1 : public Closure<R(Arg2, Arg3, Arg4)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4);
   MethodClosure_Arg3_Bind1(Class *object, MethodType method, PreArg1 pa1):
     object_(object), method_(method), pa_1_(pa1) {}
   virtual R Run(Arg2 arg2, Arg3 arg3, Arg4 arg4) {
@@ -4552,11 +4685,11 @@ public:
         MethodClosure_Arg3_Bind1> self_deleter(this);
     return (object_->*method_)(pa_1_, arg2, arg3, arg4);
   }
-  virtual Closure<R (Arg2, Arg3, Arg4)>* Clone() {
+  virtual Closure<R(Arg2, Arg3, Arg4)>* Clone() {
     return new MethodClosure_Arg3_Bind1(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -4564,8 +4697,8 @@ private:
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename PreArg1>
-Closure<R (Arg2, Arg3, Arg4)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4),
+Closure<R(Arg2, Arg3, Arg4)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4),
     PreArg1 pa1) {
   return new MethodClosure_Arg3_Bind1<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, PreArg1>(
@@ -4574,8 +4707,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4),
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename PreArg1>
-Closure<R (Arg2, Arg3, Arg4)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg2, Arg3, Arg4)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4), PreArg1 pa1) {
   return new MethodClosure_Arg3_Bind1<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, PreArg1>(
@@ -4584,8 +4717,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename PreArg1>
-ClosureFunc<R (Arg2, Arg3, Arg4)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4),
+ClosureFunc<R(Arg2, Arg3, Arg4)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4),
     PreArg1 pa1) {
   return ClosureFunc<R (Arg2, Arg3, Arg4)>(NewPermanentClosure(object, method,
       pa1));
@@ -4599,9 +4732,9 @@ template <
   bool Permanent,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename PreArg1>
-class FunctionClosure_Arg3_Bind1 : public Closure<R (Arg2, Arg3, Arg4)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4);
-public:
+class FunctionClosure_Arg3_Bind1 : public Closure<R(Arg2, Arg3, Arg4)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4);
   FunctionClosure_Arg3_Bind1(FunctionType function, PreArg1 pa1):
     function_(function), pa_1_(pa1) {}
   virtual R Run(Arg2 arg2, Arg3 arg3, Arg4 arg4) {
@@ -4609,36 +4742,36 @@ public:
         FunctionClosure_Arg3_Bind1> self_deleter(this);
     return function_(pa_1_, arg2, arg3, arg4);
   }
-  virtual Closure<R (Arg2, Arg3, Arg4)>* Clone() {
+  virtual Closure<R(Arg2, Arg3, Arg4)>* Clone() {
     return new FunctionClosure_Arg3_Bind1(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
 };
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1>
-Closure<R (Arg2, Arg3, Arg4)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1) {
+Closure<R(Arg2, Arg3, Arg4)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1) {
   return new FunctionClosure_Arg3_Bind1<false, R, Arg1, Arg2, Arg3, Arg4,
       PreArg1>(function, pa1);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1>
-Closure<R (Arg2, Arg3, Arg4)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1) {
+Closure<R(Arg2, Arg3, Arg4)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1) {
   return new FunctionClosure_Arg3_Bind1<true, R, Arg1, Arg2, Arg3, Arg4,
       PreArg1>(function, pa1);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1>
-ClosureFunc<R (Arg2, Arg3, Arg4)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1) {
-  return ClosureFunc<R (Arg2, Arg3, Arg4)>(NewPermanentClosure(function, pa1));
+ClosureFunc<R(Arg2, Arg3, Arg4)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4), PreArg1 pa1) {
+  return ClosureFunc<R(Arg2, Arg3, Arg4)>(NewPermanentClosure(function, pa1));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -4649,7 +4782,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename PreArg1>
-class FunctorClosure_Arg3_Bind1 : public Closure<R (Arg2, Arg3, Arg4)> {
+class FunctorClosure_Arg3_Bind1 : public Closure<R(Arg2, Arg3, Arg4)> {
 public:
   explicit FunctorClosure_Arg3_Bind1(const F& functor, PreArg1 pa1)
     : functor_(functor), pa_1_(pa1) {}
@@ -4660,7 +4793,7 @@ public:
         FunctorClosure_Arg3_Bind1> self_deleter(this);
     return functor_(pa_1_, arg2, arg3, arg4);
   }
-  virtual Closure<R (Arg2, Arg3, Arg4)>* Clone() {
+  virtual Closure<R(Arg2, Arg3, Arg4)>* Clone() {
     return new FunctorClosure_Arg3_Bind1(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -4671,7 +4804,7 @@ private:
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename F>
-Closure<R (Arg2, Arg3, Arg4)>*
+Closure<R(Arg2, Arg3, Arg4)>*
 NewClosure(F&& functor, PreArg1 pa1) {
   return new FunctorClosure_Arg3_Bind1<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, PreArg1>(
@@ -4680,7 +4813,7 @@ NewClosure(F&& functor, PreArg1 pa1) {
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename F>
-Closure<R (Arg2, Arg3, Arg4)>*
+Closure<R(Arg2, Arg3, Arg4)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1) {
   return new FunctorClosure_Arg3_Bind1<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, PreArg1>(
@@ -4689,9 +4822,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1) {
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename PreArg1, typename F>
-ClosureFunc<R (Arg2, Arg3, Arg4)>
+ClosureFunc<R(Arg2, Arg3, Arg4)>
 BindClosure(F&& functor, PreArg1 pa1) {
-  return ClosureFunc<R (Arg2, Arg3, Arg4)>(NewPermanentClosure<R, Arg1, Arg2,
+  return ClosureFunc<R(Arg2, Arg3, Arg4)>(NewPermanentClosure<R, Arg1, Arg2,
       Arg3, Arg4, PreArg1>(std::forward<F>(functor), pa1));
 }
 
@@ -4705,9 +4838,9 @@ template <
   typename Class,
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4, typename Arg5 , typename PreArg1, typename PreArg2>
-class MethodClosure_Arg3_Bind2 : public Closure<R (Arg3, Arg4, Arg5)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5);
-public:
+class MethodClosure_Arg3_Bind2 : public Closure<R(Arg3, Arg4, Arg5)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5);
   MethodClosure_Arg3_Bind2(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2) {}
@@ -4716,11 +4849,11 @@ public:
         MethodClosure_Arg3_Bind2> self_deleter(this);
     return (object_->*method_)(pa_1_, pa_2_, arg3, arg4, arg5);
   }
-  virtual Closure<R (Arg3, Arg4, Arg5)>* Clone() {
+  virtual Closure<R(Arg3, Arg4, Arg5)>* Clone() {
     return new MethodClosure_Arg3_Bind2(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -4730,8 +4863,8 @@ private:
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5,
     typename PreArg1, typename PreArg2>
-Closure<R (Arg3, Arg4, Arg5)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+Closure<R(Arg3, Arg4, Arg5)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5), PreArg1 pa1, PreArg2 pa2) {
   return new MethodClosure_Arg3_Bind2<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, PreArg1, PreArg2>(
@@ -4741,8 +4874,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5,
     typename PreArg1, typename PreArg2>
-Closure<R (Arg3, Arg4, Arg5)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg3, Arg4, Arg5)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5), PreArg1 pa1, PreArg2 pa2) {
   return new MethodClosure_Arg3_Bind2<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, PreArg1, PreArg2>(
@@ -4752,8 +4885,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5,
     typename PreArg1, typename PreArg2>
-ClosureFunc<R (Arg3, Arg4, Arg5)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg3, Arg4, Arg5)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5), PreArg1 pa1, PreArg2 pa2) {
   return ClosureFunc<R (Arg3, Arg4, Arg5)>(NewPermanentClosure(object, method,
       pa1, pa2));
@@ -4767,9 +4900,9 @@ template <
   bool Permanent,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename PreArg1, typename PreArg2>
-class FunctionClosure_Arg3_Bind2 : public Closure<R (Arg3, Arg4, Arg5)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5);
-public:
+class FunctionClosure_Arg3_Bind2 : public Closure<R(Arg3, Arg4, Arg5)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5);
   FunctionClosure_Arg3_Bind2(FunctionType function, PreArg1 pa1, PreArg2 pa2):
     function_(function), pa_1_(pa1), pa_2_(pa2) {}
   virtual R Run(Arg3 arg3, Arg4 arg4, Arg5 arg5) {
@@ -4777,11 +4910,11 @@ public:
         FunctionClosure_Arg3_Bind2> self_deleter(this);
     return function_(pa_1_, pa_2_, arg3, arg4, arg5);
   }
-  virtual Closure<R (Arg3, Arg4, Arg5)>* Clone() {
+  virtual Closure<R(Arg3, Arg4, Arg5)>* Clone() {
     return new FunctionClosure_Arg3_Bind2(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -4789,8 +4922,8 @@ private:
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2>
-Closure<R (Arg3, Arg4, Arg5)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
+Closure<R(Arg3, Arg4, Arg5)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
     PreArg2 pa2) {
   return new FunctionClosure_Arg3_Bind2<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       PreArg1, PreArg2>(function, pa1, pa2);
@@ -4798,8 +4931,8 @@ NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2>
-Closure<R (Arg3, Arg4, Arg5)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
+Closure<R(Arg3, Arg4, Arg5)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
     PreArg2 pa2) {
   return new FunctionClosure_Arg3_Bind2<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       PreArg1, PreArg2>(function, pa1, pa2);
@@ -4807,10 +4940,10 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2>
-ClosureFunc<R (Arg3, Arg4, Arg5)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
+ClosureFunc<R(Arg3, Arg4, Arg5)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1,
     PreArg2 pa2) {
-  return ClosureFunc<R (Arg3, Arg4, Arg5)>(NewPermanentClosure(function, pa1,
+  return ClosureFunc<R(Arg3, Arg4, Arg5)>(NewPermanentClosure(function, pa1,
       pa2));
 }
 
@@ -4822,7 +4955,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename PreArg1, typename PreArg2>
-class FunctorClosure_Arg3_Bind2 : public Closure<R (Arg3, Arg4, Arg5)> {
+class FunctorClosure_Arg3_Bind2 : public Closure<R(Arg3, Arg4, Arg5)> {
 public:
   explicit FunctorClosure_Arg3_Bind2(const F& functor, PreArg1 pa1, PreArg2 pa2)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2) {}
@@ -4833,7 +4966,7 @@ public:
         FunctorClosure_Arg3_Bind2> self_deleter(this);
     return functor_(pa_1_, pa_2_, arg3, arg4, arg5);
   }
-  virtual Closure<R (Arg3, Arg4, Arg5)>* Clone() {
+  virtual Closure<R(Arg3, Arg4, Arg5)>* Clone() {
     return new FunctorClosure_Arg3_Bind2(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -4846,7 +4979,7 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename F>
-Closure<R (Arg3, Arg4, Arg5)>*
+Closure<R(Arg3, Arg4, Arg5)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
   return new FunctorClosure_Arg3_Bind2<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, PreArg1, PreArg2>(
@@ -4856,7 +4989,7 @@ NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename F>
-Closure<R (Arg3, Arg4, Arg5)>*
+Closure<R(Arg3, Arg4, Arg5)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
   return new FunctorClosure_Arg3_Bind2<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, PreArg1, PreArg2>(
@@ -4866,9 +4999,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename PreArg2,
     typename F>
-ClosureFunc<R (Arg3, Arg4, Arg5)>
+ClosureFunc<R(Arg3, Arg4, Arg5)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
-  return ClosureFunc<R (Arg3, Arg4, Arg5)>(NewPermanentClosure<R, Arg1, Arg2,
+  return ClosureFunc<R(Arg3, Arg4, Arg5)>(NewPermanentClosure<R, Arg1, Arg2,
       Arg3, Arg4, Arg5, PreArg1, PreArg2>(std::forward<F>(functor), pa1, pa2));
 }
 
@@ -4883,9 +5016,9 @@ template <
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4, typename Arg5, typename Arg6 , typename PreArg1,
       typename PreArg2, typename PreArg3>
-class MethodClosure_Arg3_Bind3 : public Closure<R (Arg4, Arg5, Arg6)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
-public:
+class MethodClosure_Arg3_Bind3 : public Closure<R(Arg4, Arg5, Arg6)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
   MethodClosure_Arg3_Bind3(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -4894,11 +5027,11 @@ public:
         MethodClosure_Arg3_Bind3> self_deleter(this);
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, arg4, arg5, arg6);
   }
-  virtual Closure<R (Arg4, Arg5, Arg6)>* Clone() {
+  virtual Closure<R(Arg4, Arg5, Arg6)>* Clone() {
     return new MethodClosure_Arg3_Bind3(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -4909,9 +5042,9 @@ private:
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename PreArg1, typename PreArg2, typename PreArg3>
-Closure<R (Arg4, Arg5, Arg6)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
+Closure<R(Arg4, Arg5, Arg6)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new MethodClosure_Arg3_Bind3<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, PreArg1, PreArg2, PreArg3>(
     object, method, pa1, pa2, pa3);
@@ -4920,8 +5053,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename PreArg1, typename PreArg2, typename PreArg3>
-Closure<R (Arg4, Arg5, Arg6)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg4, Arg5, Arg6)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new MethodClosure_Arg3_Bind3<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, PreArg1, PreArg2, PreArg3>(
@@ -4931,8 +5064,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename PreArg1, typename PreArg2, typename PreArg3>
-ClosureFunc<R (Arg4, Arg5, Arg6)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg4, Arg5, Arg6)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return ClosureFunc<R (Arg4, Arg5, Arg6)>(NewPermanentClosure(object, method,
       pa1, pa2, pa3));
@@ -4947,9 +5080,9 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename PreArg1, typename PreArg2,
       typename PreArg3>
-class FunctionClosure_Arg3_Bind3 : public Closure<R (Arg4, Arg5, Arg6)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
-public:
+class FunctionClosure_Arg3_Bind3 : public Closure<R(Arg4, Arg5, Arg6)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
   FunctionClosure_Arg3_Bind3(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -4958,11 +5091,11 @@ public:
         FunctionClosure_Arg3_Bind3> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_, arg4, arg5, arg6);
   }
-  virtual Closure<R (Arg4, Arg5, Arg6)>* Clone() {
+  virtual Closure<R(Arg4, Arg5, Arg6)>* Clone() {
     return new FunctionClosure_Arg3_Bind3(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -4972,8 +5105,8 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3>
-Closure<R (Arg4, Arg5, Arg6)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
+Closure<R(Arg4, Arg5, Arg6)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3) {
   return new FunctionClosure_Arg3_Bind3<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, PreArg1, PreArg2, PreArg3>(function, pa1, pa2, pa3);
@@ -4982,8 +5115,8 @@ NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3>
-Closure<R (Arg4, Arg5, Arg6)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6),
+Closure<R(Arg4, Arg5, Arg6)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new FunctionClosure_Arg3_Bind3<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, PreArg1, PreArg2, PreArg3>(function, pa1, pa2, pa3);
@@ -4992,10 +5125,10 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6),
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3>
-ClosureFunc<R (Arg4, Arg5, Arg6)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
+ClosureFunc<R(Arg4, Arg5, Arg6)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3) {
-  return ClosureFunc<R (Arg4, Arg5, Arg6)>(NewPermanentClosure(function, pa1,
+  return ClosureFunc<R(Arg4, Arg5, Arg6)>(NewPermanentClosure(function, pa1,
       pa2, pa3));
 }
 
@@ -5008,7 +5141,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename PreArg1, typename PreArg2,
       typename PreArg3>
-class FunctorClosure_Arg3_Bind3 : public Closure<R (Arg4, Arg5, Arg6)> {
+class FunctorClosure_Arg3_Bind3 : public Closure<R(Arg4, Arg5, Arg6)> {
 public:
   explicit FunctorClosure_Arg3_Bind3(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3)
@@ -5021,7 +5154,7 @@ public:
         FunctorClosure_Arg3_Bind3> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, arg4, arg5, arg6);
   }
-  virtual Closure<R (Arg4, Arg5, Arg6)>* Clone() {
+  virtual Closure<R(Arg4, Arg5, Arg6)>* Clone() {
     return new FunctorClosure_Arg3_Bind3(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -5035,7 +5168,7 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename F>
-Closure<R (Arg4, Arg5, Arg6)>*
+Closure<R(Arg4, Arg5, Arg6)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new FunctorClosure_Arg3_Bind3<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, PreArg1, PreArg2, PreArg3>(
@@ -5045,7 +5178,7 @@ NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename F>
-Closure<R (Arg4, Arg5, Arg6)>*
+Closure<R(Arg4, Arg5, Arg6)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new FunctorClosure_Arg3_Bind3<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, PreArg1, PreArg2, PreArg3>(
@@ -5055,9 +5188,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename PreArg3, typename F>
-ClosureFunc<R (Arg4, Arg5, Arg6)>
+ClosureFunc<R(Arg4, Arg5, Arg6)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
-  return ClosureFunc<R (Arg4, Arg5, Arg6)>(NewPermanentClosure<R, Arg1, Arg2,
+  return ClosureFunc<R(Arg4, Arg5, Arg6)>(NewPermanentClosure<R, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, PreArg1, PreArg2,
       PreArg3>(std::forward<F>(functor), pa1, pa2, pa3));
 }
@@ -5073,10 +5206,9 @@ template <
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4, typename Arg5, typename Arg6, typename Arg7 ,
       typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
-class MethodClosure_Arg3_Bind4 : public Closure<R (Arg5, Arg6, Arg7)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7);
-public:
+class MethodClosure_Arg3_Bind4 : public Closure<R(Arg5, Arg6, Arg7)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7);
   MethodClosure_Arg3_Bind4(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -5086,11 +5218,11 @@ public:
         MethodClosure_Arg3_Bind4> self_deleter(this);
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_, arg5, arg6, arg7);
   }
-  virtual Closure<R (Arg5, Arg6, Arg7)>* Clone() {
+  virtual Closure<R(Arg5, Arg6, Arg7)>* Clone() {
     return new MethodClosure_Arg3_Bind4(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -5103,9 +5235,9 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4>
-Closure<R (Arg5, Arg6, Arg7)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
+Closure<R(Arg5, Arg6, Arg7)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new MethodClosure_Arg3_Bind4<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, PreArg1, PreArg2, PreArg3, PreArg4>(
     object, method, pa1, pa2, pa3, pa4);
@@ -5115,8 +5247,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4>
-Closure<R (Arg5, Arg6, Arg7)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg5, Arg6, Arg7)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4) {
   return new MethodClosure_Arg3_Bind4<true, R, Class, MethodClass, Arg1, Arg2,
@@ -5128,8 +5260,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4>
-ClosureFunc<R (Arg5, Arg6, Arg7)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg5, Arg6, Arg7)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return ClosureFunc<R (Arg5, Arg6, Arg7)>(NewPermanentClosure(object, method,
       pa1, pa2, pa3, pa4));
@@ -5144,9 +5276,9 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename Arg7, typename PreArg1,
       typename PreArg2, typename PreArg3, typename PreArg4>
-class FunctionClosure_Arg3_Bind4 : public Closure<R (Arg5, Arg6, Arg7)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7);
-public:
+class FunctionClosure_Arg3_Bind4 : public Closure<R(Arg5, Arg6, Arg7)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7);
   FunctionClosure_Arg3_Bind4(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4) {}
@@ -5155,11 +5287,11 @@ public:
         FunctionClosure_Arg3_Bind4> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_, pa_4_, arg5, arg6, arg7);
   }
-  virtual Closure<R (Arg5, Arg6, Arg7)>* Clone() {
+  virtual Closure<R(Arg5, Arg6, Arg7)>* Clone() {
     return new FunctionClosure_Arg3_Bind4(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -5170,9 +5302,9 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
-Closure<R (Arg5, Arg6, Arg7)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
-    PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
+Closure<R(Arg5, Arg6, Arg7)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7), PreArg1 pa1,
+    PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new FunctionClosure_Arg3_Bind4<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, PreArg1, PreArg2, PreArg3, PreArg4>(function, pa1, pa2, pa3,
       pa4);
@@ -5181,8 +5313,8 @@ NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
-Closure<R (Arg5, Arg6, Arg7)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
+Closure<R(Arg5, Arg6, Arg7)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new FunctionClosure_Arg3_Bind4<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, PreArg1, PreArg2, PreArg3, PreArg4>(function, pa1, pa2, pa3,
@@ -5192,10 +5324,10 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
-ClosureFunc<R (Arg5, Arg6, Arg7)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
+ClosureFunc<R(Arg5, Arg6, Arg7)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
-  return ClosureFunc<R (Arg5, Arg6, Arg7)>(NewPermanentClosure(function, pa1,
+  return ClosureFunc<R(Arg5, Arg6, Arg7)>(NewPermanentClosure(function, pa1,
       pa2, pa3, pa4));
 }
 
@@ -5208,7 +5340,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename Arg7, typename PreArg1,
       typename PreArg2, typename PreArg3, typename PreArg4>
-class FunctorClosure_Arg3_Bind4 : public Closure<R (Arg5, Arg6, Arg7)> {
+class FunctorClosure_Arg3_Bind4 : public Closure<R(Arg5, Arg6, Arg7)> {
 public:
   explicit FunctorClosure_Arg3_Bind4(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4)
@@ -5222,7 +5354,7 @@ public:
         FunctorClosure_Arg3_Bind4> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_, arg5, arg6, arg7);
   }
-  virtual Closure<R (Arg5, Arg6, Arg7)>* Clone() {
+  virtual Closure<R(Arg5, Arg6, Arg7)>* Clone() {
     return new FunctorClosure_Arg3_Bind4(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -5238,7 +5370,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename F>
-Closure<R (Arg5, Arg6, Arg7)>*
+Closure<R(Arg5, Arg6, Arg7)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new FunctorClosure_Arg3_Bind4<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, PreArg1, PreArg2, PreArg3,
@@ -5250,7 +5382,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename F>
-Closure<R (Arg5, Arg6, Arg7)>*
+Closure<R(Arg5, Arg6, Arg7)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4) {
   return new FunctorClosure_Arg3_Bind4<true, typename std::decay<F>::type, R,
@@ -5263,9 +5395,9 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename F>
-ClosureFunc<R (Arg5, Arg6, Arg7)>
+ClosureFunc<R(Arg5, Arg6, Arg7)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
-  return ClosureFunc<R (Arg5, Arg6, Arg7)>(NewPermanentClosure<R, Arg1, Arg2,
+  return ClosureFunc<R(Arg5, Arg6, Arg7)>(NewPermanentClosure<R, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, PreArg1, PreArg2, PreArg3,
       PreArg4>(std::forward<F>(functor), pa1, pa2, pa3, pa4));
 }
@@ -5282,10 +5414,10 @@ template <
       typename Arg4, typename Arg5, typename Arg6, typename Arg7,
       typename Arg8 , typename PreArg1, typename PreArg2, typename PreArg3,
       typename PreArg4, typename PreArg5>
-class MethodClosure_Arg3_Bind5 : public Closure<R (Arg6, Arg7, Arg8)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7, Arg8);
-public:
+class MethodClosure_Arg3_Bind5 : public Closure<R(Arg6, Arg7, Arg8)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+      Arg8);
   MethodClosure_Arg3_Bind5(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -5296,11 +5428,11 @@ public:
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, arg6, arg7,
         arg8);
   }
-  virtual Closure<R (Arg6, Arg7, Arg8)>* Clone() {
+  virtual Closure<R(Arg6, Arg7, Arg8)>* Clone() {
     return new MethodClosure_Arg3_Bind5(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -5314,10 +5446,10 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5>
-Closure<R (Arg6, Arg7, Arg8)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7, Arg8), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
-    PreArg4 pa4, PreArg5 pa5) {
+Closure<R(Arg6, Arg7, Arg8)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7, Arg8), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
+    PreArg5 pa5) {
   return new MethodClosure_Arg3_Bind5<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, PreArg1, PreArg2, PreArg3, PreArg4,
       PreArg5>(
@@ -5328,8 +5460,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5>
-Closure<R (Arg6, Arg7, Arg8)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg6, Arg7, Arg8)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7, Arg8), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5) {
   return new MethodClosure_Arg3_Bind5<true, R, Class, MethodClass, Arg1, Arg2,
@@ -5342,8 +5474,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5>
-ClosureFunc<R (Arg6, Arg7, Arg8)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg6, Arg7, Arg8)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7, Arg8), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5) {
   return ClosureFunc<R (Arg6, Arg7, Arg8)>(NewPermanentClosure(object, method,
@@ -5360,9 +5492,9 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
       typename PreArg5>
-class FunctionClosure_Arg3_Bind5 : public Closure<R (Arg6, Arg7, Arg8)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8);
-public:
+class FunctionClosure_Arg3_Bind5 : public Closure<R(Arg6, Arg7, Arg8)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8);
   FunctionClosure_Arg3_Bind5(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4, PreArg5 pa5):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -5372,11 +5504,11 @@ public:
         FunctionClosure_Arg3_Bind5> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, arg6, arg7, arg8);
   }
-  virtual Closure<R (Arg6, Arg7, Arg8)>* Clone() {
+  virtual Closure<R(Arg6, Arg7, Arg8)>* Clone() {
     return new FunctionClosure_Arg3_Bind5(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -5389,8 +5521,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5>
-Closure<R (Arg6, Arg7, Arg8)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
+Closure<R(Arg6, Arg7, Arg8)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
   return new FunctionClosure_Arg3_Bind5<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, Arg8, PreArg1, PreArg2, PreArg3, PreArg4, PreArg5>(function,
@@ -5401,8 +5533,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5>
-Closure<R (Arg6, Arg7, Arg8)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+Closure<R(Arg6, Arg7, Arg8)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
     Arg8), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
   return new FunctionClosure_Arg3_Bind5<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, Arg8, PreArg1, PreArg2, PreArg3, PreArg4, PreArg5>(function,
@@ -5413,10 +5545,10 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5>
-ClosureFunc<R (Arg6, Arg7, Arg8)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
+ClosureFunc<R(Arg6, Arg7, Arg8)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
-  return ClosureFunc<R (Arg6, Arg7, Arg8)>(NewPermanentClosure(function, pa1,
+  return ClosureFunc<R(Arg6, Arg7, Arg8)>(NewPermanentClosure(function, pa1,
       pa2, pa3, pa4, pa5));
 }
 
@@ -5430,7 +5562,7 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
       typename PreArg5>
-class FunctorClosure_Arg3_Bind5 : public Closure<R (Arg6, Arg7, Arg8)> {
+class FunctorClosure_Arg3_Bind5 : public Closure<R(Arg6, Arg7, Arg8)> {
 public:
   explicit FunctorClosure_Arg3_Bind5(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5)
@@ -5445,7 +5577,7 @@ public:
         FunctorClosure_Arg3_Bind5> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, arg6, arg7, arg8);
   }
-  virtual Closure<R (Arg6, Arg7, Arg8)>* Clone() {
+  virtual Closure<R(Arg6, Arg7, Arg8)>* Clone() {
     return new FunctorClosure_Arg3_Bind5(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -5462,7 +5594,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename F>
-Closure<R (Arg6, Arg7, Arg8)>*
+Closure<R(Arg6, Arg7, Arg8)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
   return new FunctorClosure_Arg3_Bind5<false, typename std::decay<F>::type, R,
@@ -5475,7 +5607,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename F>
-Closure<R (Arg6, Arg7, Arg8)>*
+Closure<R(Arg6, Arg7, Arg8)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5) {
   return new FunctorClosure_Arg3_Bind5<true, typename std::decay<F>::type, R,
@@ -5488,10 +5620,10 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename F>
-ClosureFunc<R (Arg6, Arg7, Arg8)>
+ClosureFunc<R(Arg6, Arg7, Arg8)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
-  return ClosureFunc<R (Arg6, Arg7, Arg8)>(NewPermanentClosure<R, Arg1, Arg2,
+  return ClosureFunc<R(Arg6, Arg7, Arg8)>(NewPermanentClosure<R, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, PreArg1, PreArg2, PreArg3, PreArg4,
       PreArg5>(std::forward<F>(functor), pa1, pa2, pa3, pa4, pa5));
 }
@@ -5508,10 +5640,10 @@ template <
       typename Arg4, typename Arg5, typename Arg6, typename Arg7,
       typename Arg8, typename Arg9 , typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4, typename PreArg5, typename PreArg6>
-class MethodClosure_Arg3_Bind6 : public Closure<R (Arg7, Arg8, Arg9)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7, Arg8, Arg9);
-public:
+class MethodClosure_Arg3_Bind6 : public Closure<R(Arg7, Arg8, Arg9)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+      Arg8, Arg9);
   MethodClosure_Arg3_Bind6(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -5522,11 +5654,11 @@ public:
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_, arg7,
         arg8, arg9);
   }
-  virtual Closure<R (Arg7, Arg8, Arg9)>* Clone() {
+  virtual Closure<R(Arg7, Arg8, Arg9)>* Clone() {
     return new MethodClosure_Arg3_Bind6(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -5542,9 +5674,9 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg7, typename Arg8, typename Arg9, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename PreArg6>
-Closure<R (Arg7, Arg8, Arg9)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7, Arg8, Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
+Closure<R(Arg7, Arg8, Arg9)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7, Arg8, Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new MethodClosure_Arg3_Bind6<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, PreArg1, PreArg2, PreArg3,
@@ -5557,8 +5689,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg7, typename Arg8, typename Arg9, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename PreArg6>
-Closure<R (Arg7, Arg8, Arg9)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg7, Arg8, Arg9)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7, Arg8, Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new MethodClosure_Arg3_Bind6<true, R, Class, MethodClass, Arg1, Arg2,
@@ -5572,8 +5704,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg7, typename Arg8, typename Arg9, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename PreArg6>
-ClosureFunc<R (Arg7, Arg8, Arg9)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg7, Arg8, Arg9)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7, Arg8, Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return ClosureFunc<R (Arg7, Arg8, Arg9)>(NewPermanentClosure(object, method,
@@ -5590,10 +5722,10 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
       typename PreArg4, typename PreArg5, typename PreArg6>
-class FunctionClosure_Arg3_Bind6 : public Closure<R (Arg7, Arg8, Arg9)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
+class FunctionClosure_Arg3_Bind6 : public Closure<R(Arg7, Arg8, Arg9)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
       Arg9);
-public:
   FunctionClosure_Arg3_Bind6(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -5604,11 +5736,11 @@ public:
     return function_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_, arg7, arg8,
         arg9);
   }
-  virtual Closure<R (Arg7, Arg8, Arg9)>* Clone() {
+  virtual Closure<R(Arg7, Arg8, Arg9)>* Clone() {
     return new FunctionClosure_Arg3_Bind6(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -5622,8 +5754,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5, typename PreArg6>
-Closure<R (Arg7, Arg8, Arg9)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9),
+Closure<R(Arg7, Arg8, Arg9)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5,
     PreArg6 pa6) {
   return new FunctionClosure_Arg3_Bind6<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
@@ -5635,8 +5767,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5, typename PreArg6>
-Closure<R (Arg7, Arg8, Arg9)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+Closure<R(Arg7, Arg8, Arg9)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
     Arg8, Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
   return new FunctionClosure_Arg3_Bind6<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
@@ -5648,11 +5780,11 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5, typename PreArg6>
-ClosureFunc<R (Arg7, Arg8, Arg9)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
-    Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5,
+ClosureFunc<R(Arg7, Arg8, Arg9)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9),
+    PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5,
     PreArg6 pa6) {
-  return ClosureFunc<R (Arg7, Arg8, Arg9)>(NewPermanentClosure(function, pa1,
+  return ClosureFunc<R(Arg7, Arg8, Arg9)>(NewPermanentClosure(function, pa1,
       pa2, pa3, pa4, pa5, pa6));
 }
 
@@ -5666,7 +5798,7 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
       typename PreArg4, typename PreArg5, typename PreArg6>
-class FunctorClosure_Arg3_Bind6 : public Closure<R (Arg7, Arg8, Arg9)> {
+class FunctorClosure_Arg3_Bind6 : public Closure<R(Arg7, Arg8, Arg9)> {
 public:
   explicit FunctorClosure_Arg3_Bind6(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6)
@@ -5681,7 +5813,7 @@ public:
         FunctorClosure_Arg3_Bind6> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_, arg7, arg8, arg9);
   }
-  virtual Closure<R (Arg7, Arg8, Arg9)>* Clone() {
+  virtual Closure<R(Arg7, Arg8, Arg9)>* Clone() {
     return new FunctorClosure_Arg3_Bind6(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -5699,7 +5831,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5, typename PreArg6, typename F>
-Closure<R (Arg7, Arg8, Arg9)>*
+Closure<R(Arg7, Arg8, Arg9)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
   return new FunctorClosure_Arg3_Bind6<false, typename std::decay<F>::type, R,
@@ -5712,7 +5844,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5, typename PreArg6, typename F>
-Closure<R (Arg7, Arg8, Arg9)>*
+Closure<R(Arg7, Arg8, Arg9)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new FunctorClosure_Arg3_Bind6<true, typename std::decay<F>::type, R,
@@ -5725,10 +5857,10 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5, typename PreArg6, typename F>
-ClosureFunc<R (Arg7, Arg8, Arg9)>
+ClosureFunc<R(Arg7, Arg8, Arg9)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
-  return ClosureFunc<R (Arg7, Arg8, Arg9)>(NewPermanentClosure<R, Arg1, Arg2,
+  return ClosureFunc<R(Arg7, Arg8, Arg9)>(NewPermanentClosure<R, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, PreArg1, PreArg2, PreArg3,
       PreArg4, PreArg5, PreArg6>(std::forward<F>(functor), pa1, pa2, pa3, pa4,
       pa5, pa6));
@@ -5744,9 +5876,9 @@ template <
   typename Class,
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4 >
-class MethodClosure_Arg4_Bind0 : public Closure<R (Arg1, Arg2, Arg3, Arg4)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4);
-public:
+class MethodClosure_Arg4_Bind0 : public Closure<R(Arg1, Arg2, Arg3, Arg4)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4);
   MethodClosure_Arg4_Bind0(Class *object, MethodType method):
     object_(object), method_(method) {}
   virtual R Run(Arg1 arg1, Arg2 arg2, Arg3 arg3, Arg4 arg4) {
@@ -5754,19 +5886,19 @@ public:
         MethodClosure_Arg4_Bind0> self_deleter(this);
     return (object_->*method_)(arg1, arg2, arg3, arg4);
   }
-  virtual Closure<R (Arg1, Arg2, Arg3, Arg4)>* Clone() {
+  virtual Closure<R(Arg1, Arg2, Arg3, Arg4)>* Clone() {
     return new MethodClosure_Arg4_Bind0(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
 };
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4>
-Closure<R (Arg1, Arg2, Arg3, Arg4)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4)) {
+Closure<R(Arg1, Arg2, Arg3, Arg4)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4)) {
   return new MethodClosure_Arg4_Bind0<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4>(
     object, method);
@@ -5774,8 +5906,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4)) {
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4>
-Closure<R (Arg1, Arg2, Arg3, Arg4)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg1, Arg2, Arg3, Arg4)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4)) {
   return new MethodClosure_Arg4_Bind0<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4>(
@@ -5784,8 +5916,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4>
-ClosureFunc<R (Arg1, Arg2, Arg3, Arg4)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4)) {
+ClosureFunc<R(Arg1, Arg2, Arg3, Arg4)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4)) {
   return ClosureFunc<R (Arg1, Arg2, Arg3, Arg4)>(NewPermanentClosure(object,
       method));
 }
@@ -5797,9 +5929,9 @@ BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4)) {
 template <
   bool Permanent,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4>
-class FunctionClosure_Arg4_Bind0 : public Closure<R (Arg1, Arg2, Arg3, Arg4)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4);
-public:
+class FunctionClosure_Arg4_Bind0 : public Closure<R(Arg1, Arg2, Arg3, Arg4)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4);
   FunctionClosure_Arg4_Bind0(FunctionType function):
     function_(function) {}
   virtual R Run(Arg1 arg1, Arg2 arg2, Arg3 arg3, Arg4 arg4) {
@@ -5807,35 +5939,35 @@ public:
         FunctionClosure_Arg4_Bind0> self_deleter(this);
     return function_(arg1, arg2, arg3, arg4);
   }
-  virtual Closure<R (Arg1, Arg2, Arg3, Arg4)>* Clone() {
+  virtual Closure<R(Arg1, Arg2, Arg3, Arg4)>* Clone() {
     return new FunctionClosure_Arg4_Bind0(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
 };
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4>
-Closure<R (Arg1, Arg2, Arg3, Arg4)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4)) {
+Closure<R(Arg1, Arg2, Arg3, Arg4)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4)) {
   return new FunctionClosure_Arg4_Bind0<false, R, Arg1, Arg2, Arg3,
       Arg4>(function);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4>
-Closure<R (Arg1, Arg2, Arg3, Arg4)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4)) {
+Closure<R(Arg1, Arg2, Arg3, Arg4)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4)) {
   return new FunctionClosure_Arg4_Bind0<true, R, Arg1, Arg2, Arg3,
       Arg4>(function);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4>
-ClosureFunc<R (Arg1, Arg2, Arg3, Arg4)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4)) {
-  return ClosureFunc<R (Arg1, Arg2, Arg3, Arg4)>(NewPermanentClosure(function));
+ClosureFunc<R(Arg1, Arg2, Arg3, Arg4)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4)) {
+  return ClosureFunc<R(Arg1, Arg2, Arg3, Arg4)>(NewPermanentClosure(function));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -5845,7 +5977,7 @@ BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4)) {
 template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4>
-class FunctorClosure_Arg4_Bind0 : public Closure<R (Arg1, Arg2, Arg3, Arg4)> {
+class FunctorClosure_Arg4_Bind0 : public Closure<R(Arg1, Arg2, Arg3, Arg4)> {
 public:
   explicit FunctorClosure_Arg4_Bind0(const F& functor)
     : functor_(functor) {}
@@ -5856,7 +5988,7 @@ public:
         FunctorClosure_Arg4_Bind0> self_deleter(this);
     return functor_(arg1, arg2, arg3, arg4);
   }
-  virtual Closure<R (Arg1, Arg2, Arg3, Arg4)>* Clone() {
+  virtual Closure<R(Arg1, Arg2, Arg3, Arg4)>* Clone() {
     return new FunctorClosure_Arg4_Bind0(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -5866,7 +5998,7 @@ private:
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename F>
-Closure<R (Arg1, Arg2, Arg3, Arg4)>*
+Closure<R(Arg1, Arg2, Arg3, Arg4)>*
 NewClosure(F&& functor) {
   return new FunctorClosure_Arg4_Bind0<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4>(
@@ -5875,7 +6007,7 @@ NewClosure(F&& functor) {
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename F>
-Closure<R (Arg1, Arg2, Arg3, Arg4)>*
+Closure<R(Arg1, Arg2, Arg3, Arg4)>*
 NewPermanentClosure(F&& functor) {
   return new FunctorClosure_Arg4_Bind0<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4>(
@@ -5884,9 +6016,9 @@ NewPermanentClosure(F&& functor) {
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename F>
-ClosureFunc<R (Arg1, Arg2, Arg3, Arg4)>
+ClosureFunc<R(Arg1, Arg2, Arg3, Arg4)>
 BindClosure(F&& functor) {
-  return ClosureFunc<R (Arg1, Arg2, Arg3, Arg4)>(NewPermanentClosure<R, Arg1,
+  return ClosureFunc<R(Arg1, Arg2, Arg3, Arg4)>(NewPermanentClosure<R, Arg1,
       Arg2, Arg3, Arg4>(std::forward<F>(functor)));
 }
 
@@ -5900,9 +6032,9 @@ template <
   typename Class,
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4, typename Arg5 , typename PreArg1>
-class MethodClosure_Arg4_Bind1 : public Closure<R (Arg2, Arg3, Arg4, Arg5)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5);
-public:
+class MethodClosure_Arg4_Bind1 : public Closure<R(Arg2, Arg3, Arg4, Arg5)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5);
   MethodClosure_Arg4_Bind1(Class *object, MethodType method, PreArg1 pa1):
     object_(object), method_(method), pa_1_(pa1) {}
   virtual R Run(Arg2 arg2, Arg3 arg3, Arg4 arg4, Arg5 arg5) {
@@ -5910,11 +6042,11 @@ public:
         MethodClosure_Arg4_Bind1> self_deleter(this);
     return (object_->*method_)(pa_1_, arg2, arg3, arg4, arg5);
   }
-  virtual Closure<R (Arg2, Arg3, Arg4, Arg5)>* Clone() {
+  virtual Closure<R(Arg2, Arg3, Arg4, Arg5)>* Clone() {
     return new MethodClosure_Arg4_Bind1(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -5923,8 +6055,8 @@ private:
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5,
     typename PreArg1>
-Closure<R (Arg2, Arg3, Arg4, Arg5)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+Closure<R(Arg2, Arg3, Arg4, Arg5)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5), PreArg1 pa1) {
   return new MethodClosure_Arg4_Bind1<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, PreArg1>(
@@ -5934,8 +6066,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5,
     typename PreArg1>
-Closure<R (Arg2, Arg3, Arg4, Arg5)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg2, Arg3, Arg4, Arg5)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5), PreArg1 pa1) {
   return new MethodClosure_Arg4_Bind1<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, PreArg1>(
@@ -5945,8 +6077,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5,
     typename PreArg1>
-ClosureFunc<R (Arg2, Arg3, Arg4, Arg5)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg2, Arg3, Arg4, Arg5)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5), PreArg1 pa1) {
   return ClosureFunc<R (Arg2, Arg3, Arg4, Arg5)>(NewPermanentClosure(object,
       method, pa1));
@@ -5960,9 +6092,9 @@ template <
   bool Permanent,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename PreArg1>
-class FunctionClosure_Arg4_Bind1 : public Closure<R (Arg2, Arg3, Arg4, Arg5)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5);
-public:
+class FunctionClosure_Arg4_Bind1 : public Closure<R(Arg2, Arg3, Arg4, Arg5)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5);
   FunctionClosure_Arg4_Bind1(FunctionType function, PreArg1 pa1):
     function_(function), pa_1_(pa1) {}
   virtual R Run(Arg2 arg2, Arg3 arg3, Arg4 arg4, Arg5 arg5) {
@@ -5970,36 +6102,36 @@ public:
         FunctionClosure_Arg4_Bind1> self_deleter(this);
     return function_(pa_1_, arg2, arg3, arg4, arg5);
   }
-  virtual Closure<R (Arg2, Arg3, Arg4, Arg5)>* Clone() {
+  virtual Closure<R(Arg2, Arg3, Arg4, Arg5)>* Clone() {
     return new FunctionClosure_Arg4_Bind1(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
 };
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1>
-Closure<R (Arg2, Arg3, Arg4, Arg5)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1) {
+Closure<R(Arg2, Arg3, Arg4, Arg5)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1) {
   return new FunctionClosure_Arg4_Bind1<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       PreArg1>(function, pa1);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1>
-Closure<R (Arg2, Arg3, Arg4, Arg5)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1) {
+Closure<R(Arg2, Arg3, Arg4, Arg5)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1) {
   return new FunctionClosure_Arg4_Bind1<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       PreArg1>(function, pa1);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1>
-ClosureFunc<R (Arg2, Arg3, Arg4, Arg5)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1) {
-  return ClosureFunc<R (Arg2, Arg3, Arg4, Arg5)>(NewPermanentClosure(function,
+ClosureFunc<R(Arg2, Arg3, Arg4, Arg5)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5), PreArg1 pa1) {
+  return ClosureFunc<R(Arg2, Arg3, Arg4, Arg5)>(NewPermanentClosure(function,
       pa1));
 }
 
@@ -6011,7 +6143,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename PreArg1>
-class FunctorClosure_Arg4_Bind1 : public Closure<R (Arg2, Arg3, Arg4, Arg5)> {
+class FunctorClosure_Arg4_Bind1 : public Closure<R(Arg2, Arg3, Arg4, Arg5)> {
 public:
   explicit FunctorClosure_Arg4_Bind1(const F& functor, PreArg1 pa1)
     : functor_(functor), pa_1_(pa1) {}
@@ -6022,7 +6154,7 @@ public:
         FunctorClosure_Arg4_Bind1> self_deleter(this);
     return functor_(pa_1_, arg2, arg3, arg4, arg5);
   }
-  virtual Closure<R (Arg2, Arg3, Arg4, Arg5)>* Clone() {
+  virtual Closure<R(Arg2, Arg3, Arg4, Arg5)>* Clone() {
     return new FunctorClosure_Arg4_Bind1(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -6033,7 +6165,7 @@ private:
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename F>
-Closure<R (Arg2, Arg3, Arg4, Arg5)>*
+Closure<R(Arg2, Arg3, Arg4, Arg5)>*
 NewClosure(F&& functor, PreArg1 pa1) {
   return new FunctorClosure_Arg4_Bind1<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, PreArg1>(
@@ -6042,7 +6174,7 @@ NewClosure(F&& functor, PreArg1 pa1) {
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename F>
-Closure<R (Arg2, Arg3, Arg4, Arg5)>*
+Closure<R(Arg2, Arg3, Arg4, Arg5)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1) {
   return new FunctorClosure_Arg4_Bind1<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, PreArg1>(
@@ -6051,9 +6183,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1) {
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename PreArg1, typename F>
-ClosureFunc<R (Arg2, Arg3, Arg4, Arg5)>
+ClosureFunc<R(Arg2, Arg3, Arg4, Arg5)>
 BindClosure(F&& functor, PreArg1 pa1) {
-  return ClosureFunc<R (Arg2, Arg3, Arg4, Arg5)>(NewPermanentClosure<R, Arg1,
+  return ClosureFunc<R(Arg2, Arg3, Arg4, Arg5)>(NewPermanentClosure<R, Arg1,
       Arg2, Arg3, Arg4, Arg5, PreArg1>(std::forward<F>(functor), pa1));
 }
 
@@ -6068,9 +6200,9 @@ template <
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4, typename Arg5, typename Arg6 , typename PreArg1,
       typename PreArg2>
-class MethodClosure_Arg4_Bind2 : public Closure<R (Arg3, Arg4, Arg5, Arg6)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
-public:
+class MethodClosure_Arg4_Bind2 : public Closure<R(Arg3, Arg4, Arg5, Arg6)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
   MethodClosure_Arg4_Bind2(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2) {}
@@ -6079,11 +6211,11 @@ public:
         MethodClosure_Arg4_Bind2> self_deleter(this);
     return (object_->*method_)(pa_1_, pa_2_, arg3, arg4, arg5, arg6);
   }
-  virtual Closure<R (Arg3, Arg4, Arg5, Arg6)>* Clone() {
+  virtual Closure<R(Arg3, Arg4, Arg5, Arg6)>* Clone() {
     return new MethodClosure_Arg4_Bind2(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -6093,9 +6225,9 @@ private:
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename PreArg1, typename PreArg2>
-Closure<R (Arg3, Arg4, Arg5, Arg6)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6), PreArg1 pa1, PreArg2 pa2) {
+Closure<R(Arg3, Arg4, Arg5, Arg6)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6), PreArg1 pa1, PreArg2 pa2) {
   return new MethodClosure_Arg4_Bind2<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, PreArg1, PreArg2>(
     object, method, pa1, pa2);
@@ -6104,8 +6236,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename PreArg1, typename PreArg2>
-Closure<R (Arg3, Arg4, Arg5, Arg6)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg3, Arg4, Arg5, Arg6)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6), PreArg1 pa1, PreArg2 pa2) {
   return new MethodClosure_Arg4_Bind2<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, PreArg1, PreArg2>(
@@ -6115,8 +6247,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename PreArg1, typename PreArg2>
-ClosureFunc<R (Arg3, Arg4, Arg5, Arg6)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg3, Arg4, Arg5, Arg6)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6), PreArg1 pa1, PreArg2 pa2) {
   return ClosureFunc<R (Arg3, Arg4, Arg5, Arg6)>(NewPermanentClosure(object,
       method, pa1, pa2));
@@ -6130,9 +6262,9 @@ template <
   bool Permanent,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename PreArg1, typename PreArg2>
-class FunctionClosure_Arg4_Bind2 : public Closure<R (Arg3, Arg4, Arg5, Arg6)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
-public:
+class FunctionClosure_Arg4_Bind2 : public Closure<R(Arg3, Arg4, Arg5, Arg6)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
   FunctionClosure_Arg4_Bind2(FunctionType function, PreArg1 pa1, PreArg2 pa2):
     function_(function), pa_1_(pa1), pa_2_(pa2) {}
   virtual R Run(Arg3 arg3, Arg4 arg4, Arg5 arg5, Arg6 arg6) {
@@ -6140,11 +6272,11 @@ public:
         FunctionClosure_Arg4_Bind2> self_deleter(this);
     return function_(pa_1_, pa_2_, arg3, arg4, arg5, arg6);
   }
-  virtual Closure<R (Arg3, Arg4, Arg5, Arg6)>* Clone() {
+  virtual Closure<R(Arg3, Arg4, Arg5, Arg6)>* Clone() {
     return new FunctionClosure_Arg4_Bind2(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -6153,8 +6285,8 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2>
-Closure<R (Arg3, Arg4, Arg5, Arg6)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
+Closure<R(Arg3, Arg4, Arg5, Arg6)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
     PreArg2 pa2) {
   return new FunctionClosure_Arg4_Bind2<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, PreArg1, PreArg2>(function, pa1, pa2);
@@ -6163,8 +6295,8 @@ NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2>
-Closure<R (Arg3, Arg4, Arg5, Arg6)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6),
+Closure<R(Arg3, Arg4, Arg5, Arg6)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6),
     PreArg1 pa1, PreArg2 pa2) {
   return new FunctionClosure_Arg4_Bind2<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, PreArg1, PreArg2>(function, pa1, pa2);
@@ -6173,10 +6305,10 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6),
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2>
-ClosureFunc<R (Arg3, Arg4, Arg5, Arg6)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
+ClosureFunc<R(Arg3, Arg4, Arg5, Arg6)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1,
     PreArg2 pa2) {
-  return ClosureFunc<R (Arg3, Arg4, Arg5, Arg6)>(NewPermanentClosure(function,
+  return ClosureFunc<R(Arg3, Arg4, Arg5, Arg6)>(NewPermanentClosure(function,
       pa1, pa2));
 }
 
@@ -6188,7 +6320,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename PreArg1, typename PreArg2>
-class FunctorClosure_Arg4_Bind2 : public Closure<R (Arg3, Arg4, Arg5, Arg6)> {
+class FunctorClosure_Arg4_Bind2 : public Closure<R(Arg3, Arg4, Arg5, Arg6)> {
 public:
   explicit FunctorClosure_Arg4_Bind2(const F& functor, PreArg1 pa1, PreArg2 pa2)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2) {}
@@ -6199,7 +6331,7 @@ public:
         FunctorClosure_Arg4_Bind2> self_deleter(this);
     return functor_(pa_1_, pa_2_, arg3, arg4, arg5, arg6);
   }
-  virtual Closure<R (Arg3, Arg4, Arg5, Arg6)>* Clone() {
+  virtual Closure<R(Arg3, Arg4, Arg5, Arg6)>* Clone() {
     return new FunctorClosure_Arg4_Bind2(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -6212,7 +6344,7 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename F>
-Closure<R (Arg3, Arg4, Arg5, Arg6)>*
+Closure<R(Arg3, Arg4, Arg5, Arg6)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
   return new FunctorClosure_Arg4_Bind2<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, PreArg1, PreArg2>(
@@ -6222,7 +6354,7 @@ NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename F>
-Closure<R (Arg3, Arg4, Arg5, Arg6)>*
+Closure<R(Arg3, Arg4, Arg5, Arg6)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
   return new FunctorClosure_Arg4_Bind2<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, PreArg1, PreArg2>(
@@ -6232,9 +6364,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1,
     typename PreArg2, typename F>
-ClosureFunc<R (Arg3, Arg4, Arg5, Arg6)>
+ClosureFunc<R(Arg3, Arg4, Arg5, Arg6)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
-  return ClosureFunc<R (Arg3, Arg4, Arg5, Arg6)>(NewPermanentClosure<R, Arg1,
+  return ClosureFunc<R(Arg3, Arg4, Arg5, Arg6)>(NewPermanentClosure<R, Arg1,
       Arg2, Arg3, Arg4, Arg5, Arg6, PreArg1, PreArg2>(std::forward<F>(functor),
       pa1, pa2));
 }
@@ -6250,10 +6382,9 @@ template <
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4, typename Arg5, typename Arg6, typename Arg7 ,
       typename PreArg1, typename PreArg2, typename PreArg3>
-class MethodClosure_Arg4_Bind3 : public Closure<R (Arg4, Arg5, Arg6, Arg7)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7);
-public:
+class MethodClosure_Arg4_Bind3 : public Closure<R(Arg4, Arg5, Arg6, Arg7)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7);
   MethodClosure_Arg4_Bind3(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -6262,11 +6393,11 @@ public:
         MethodClosure_Arg4_Bind3> self_deleter(this);
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, arg4, arg5, arg6, arg7);
   }
-  virtual Closure<R (Arg4, Arg5, Arg6, Arg7)>* Clone() {
+  virtual Closure<R(Arg4, Arg5, Arg6, Arg7)>* Clone() {
     return new MethodClosure_Arg4_Bind3(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -6277,9 +6408,9 @@ private:
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename PreArg1, typename PreArg2, typename PreArg3>
-Closure<R (Arg4, Arg5, Arg6, Arg7)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
+Closure<R(Arg4, Arg5, Arg6, Arg7)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new MethodClosure_Arg4_Bind3<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, PreArg1, PreArg2, PreArg3>(
     object, method, pa1, pa2, pa3);
@@ -6288,8 +6419,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename PreArg1, typename PreArg2, typename PreArg3>
-Closure<R (Arg4, Arg5, Arg6, Arg7)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg4, Arg5, Arg6, Arg7)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new MethodClosure_Arg4_Bind3<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, PreArg1, PreArg2, PreArg3>(
@@ -6299,8 +6430,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename PreArg1, typename PreArg2, typename PreArg3>
-ClosureFunc<R (Arg4, Arg5, Arg6, Arg7)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg4, Arg5, Arg6, Arg7)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return ClosureFunc<R (Arg4, Arg5, Arg6, Arg7)>(NewPermanentClosure(object,
       method, pa1, pa2, pa3));
@@ -6315,9 +6446,9 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename Arg7, typename PreArg1,
       typename PreArg2, typename PreArg3>
-class FunctionClosure_Arg4_Bind3 : public Closure<R (Arg4, Arg5, Arg6, Arg7)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7);
-public:
+class FunctionClosure_Arg4_Bind3 : public Closure<R(Arg4, Arg5, Arg6, Arg7)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7);
   FunctionClosure_Arg4_Bind3(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -6326,11 +6457,11 @@ public:
         FunctionClosure_Arg4_Bind3> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_, arg4, arg5, arg6, arg7);
   }
-  virtual Closure<R (Arg4, Arg5, Arg6, Arg7)>* Clone() {
+  virtual Closure<R(Arg4, Arg5, Arg6, Arg7)>* Clone() {
     return new FunctionClosure_Arg4_Bind3(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -6340,9 +6471,9 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3>
-Closure<R (Arg4, Arg5, Arg6, Arg7)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
-    PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
+Closure<R(Arg4, Arg5, Arg6, Arg7)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7), PreArg1 pa1,
+    PreArg2 pa2, PreArg3 pa3) {
   return new FunctionClosure_Arg4_Bind3<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, PreArg1, PreArg2, PreArg3>(function, pa1, pa2, pa3);
 }
@@ -6350,8 +6481,8 @@ NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3>
-Closure<R (Arg4, Arg5, Arg6, Arg7)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
+Closure<R(Arg4, Arg5, Arg6, Arg7)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new FunctionClosure_Arg4_Bind3<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, PreArg1, PreArg2, PreArg3>(function, pa1, pa2, pa3);
@@ -6360,10 +6491,10 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3>
-ClosureFunc<R (Arg4, Arg5, Arg6, Arg7)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
+ClosureFunc<R(Arg4, Arg5, Arg6, Arg7)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
-  return ClosureFunc<R (Arg4, Arg5, Arg6, Arg7)>(NewPermanentClosure(function,
+  return ClosureFunc<R(Arg4, Arg5, Arg6, Arg7)>(NewPermanentClosure(function,
       pa1, pa2, pa3));
 }
 
@@ -6376,7 +6507,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename Arg7, typename PreArg1,
       typename PreArg2, typename PreArg3>
-class FunctorClosure_Arg4_Bind3 : public Closure<R (Arg4, Arg5, Arg6, Arg7)> {
+class FunctorClosure_Arg4_Bind3 : public Closure<R(Arg4, Arg5, Arg6, Arg7)> {
 public:
   explicit FunctorClosure_Arg4_Bind3(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3)
@@ -6389,7 +6520,7 @@ public:
         FunctorClosure_Arg4_Bind3> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, arg4, arg5, arg6, arg7);
   }
-  virtual Closure<R (Arg4, Arg5, Arg6, Arg7)>* Clone() {
+  virtual Closure<R(Arg4, Arg5, Arg6, Arg7)>* Clone() {
     return new FunctorClosure_Arg4_Bind3(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -6403,7 +6534,7 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename F>
-Closure<R (Arg4, Arg5, Arg6, Arg7)>*
+Closure<R(Arg4, Arg5, Arg6, Arg7)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new FunctorClosure_Arg4_Bind3<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, PreArg1, PreArg2, PreArg3>(
@@ -6413,7 +6544,7 @@ NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename F>
-Closure<R (Arg4, Arg5, Arg6, Arg7)>*
+Closure<R(Arg4, Arg5, Arg6, Arg7)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new FunctorClosure_Arg4_Bind3<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, PreArg1, PreArg2, PreArg3>(
@@ -6423,9 +6554,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename PreArg3, typename F>
-ClosureFunc<R (Arg4, Arg5, Arg6, Arg7)>
+ClosureFunc<R(Arg4, Arg5, Arg6, Arg7)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
-  return ClosureFunc<R (Arg4, Arg5, Arg6, Arg7)>(NewPermanentClosure<R, Arg1,
+  return ClosureFunc<R(Arg4, Arg5, Arg6, Arg7)>(NewPermanentClosure<R, Arg1,
       Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, PreArg1, PreArg2,
       PreArg3>(std::forward<F>(functor), pa1, pa2, pa3));
 }
@@ -6442,10 +6573,10 @@ template <
       typename Arg4, typename Arg5, typename Arg6, typename Arg7,
       typename Arg8 , typename PreArg1, typename PreArg2, typename PreArg3,
       typename PreArg4>
-class MethodClosure_Arg4_Bind4 : public Closure<R (Arg5, Arg6, Arg7, Arg8)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7, Arg8);
-public:
+class MethodClosure_Arg4_Bind4 : public Closure<R(Arg5, Arg6, Arg7, Arg8)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+      Arg8);
   MethodClosure_Arg4_Bind4(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -6456,11 +6587,11 @@ public:
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_, arg5, arg6, arg7,
         arg8);
   }
-  virtual Closure<R (Arg5, Arg6, Arg7, Arg8)>* Clone() {
+  virtual Closure<R(Arg5, Arg6, Arg7, Arg8)>* Clone() {
     return new MethodClosure_Arg4_Bind4(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -6473,10 +6604,9 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4>
-Closure<R (Arg5, Arg6, Arg7, Arg8)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7, Arg8), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
-    PreArg4 pa4) {
+Closure<R(Arg5, Arg6, Arg7, Arg8)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7, Arg8), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new MethodClosure_Arg4_Bind4<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, PreArg1, PreArg2, PreArg3, PreArg4>(
     object, method, pa1, pa2, pa3, pa4);
@@ -6486,8 +6616,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4>
-Closure<R (Arg5, Arg6, Arg7, Arg8)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg5, Arg6, Arg7, Arg8)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7, Arg8), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4) {
   return new MethodClosure_Arg4_Bind4<true, R, Class, MethodClass, Arg1, Arg2,
@@ -6499,8 +6629,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4>
-ClosureFunc<R (Arg5, Arg6, Arg7, Arg8)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg5, Arg6, Arg7, Arg8)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7, Arg8), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4) {
   return ClosureFunc<R (Arg5, Arg6, Arg7, Arg8)>(NewPermanentClosure(object,
@@ -6516,9 +6646,9 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
-class FunctionClosure_Arg4_Bind4 : public Closure<R (Arg5, Arg6, Arg7, Arg8)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8);
-public:
+class FunctionClosure_Arg4_Bind4 : public Closure<R(Arg5, Arg6, Arg7, Arg8)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8);
   FunctionClosure_Arg4_Bind4(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4) {}
@@ -6527,11 +6657,11 @@ public:
         FunctionClosure_Arg4_Bind4> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_, pa_4_, arg5, arg6, arg7, arg8);
   }
-  virtual Closure<R (Arg5, Arg6, Arg7, Arg8)>* Clone() {
+  virtual Closure<R(Arg5, Arg6, Arg7, Arg8)>* Clone() {
     return new FunctionClosure_Arg4_Bind4(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -6542,8 +6672,8 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
-Closure<R (Arg5, Arg6, Arg7, Arg8)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
+Closure<R(Arg5, Arg6, Arg7, Arg8)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new FunctionClosure_Arg4_Bind4<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, Arg8, PreArg1, PreArg2, PreArg3, PreArg4>(function, pa1, pa2,
@@ -6553,8 +6683,8 @@ NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
-Closure<R (Arg5, Arg6, Arg7, Arg8)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+Closure<R(Arg5, Arg6, Arg7, Arg8)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
     Arg8), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new FunctionClosure_Arg4_Bind4<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, Arg8, PreArg1, PreArg2, PreArg3, PreArg4>(function, pa1, pa2,
@@ -6564,10 +6694,10 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
-ClosureFunc<R (Arg5, Arg6, Arg7, Arg8)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
+ClosureFunc<R(Arg5, Arg6, Arg7, Arg8)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
-  return ClosureFunc<R (Arg5, Arg6, Arg7, Arg8)>(NewPermanentClosure(function,
+  return ClosureFunc<R(Arg5, Arg6, Arg7, Arg8)>(NewPermanentClosure(function,
       pa1, pa2, pa3, pa4));
 }
 
@@ -6580,7 +6710,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
-class FunctorClosure_Arg4_Bind4 : public Closure<R (Arg5, Arg6, Arg7, Arg8)> {
+class FunctorClosure_Arg4_Bind4 : public Closure<R(Arg5, Arg6, Arg7, Arg8)> {
 public:
   explicit FunctorClosure_Arg4_Bind4(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4)
@@ -6594,7 +6724,7 @@ public:
         FunctorClosure_Arg4_Bind4> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_, arg5, arg6, arg7, arg8);
   }
-  virtual Closure<R (Arg5, Arg6, Arg7, Arg8)>* Clone() {
+  virtual Closure<R(Arg5, Arg6, Arg7, Arg8)>* Clone() {
     return new FunctorClosure_Arg4_Bind4(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -6610,7 +6740,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename F>
-Closure<R (Arg5, Arg6, Arg7, Arg8)>*
+Closure<R(Arg5, Arg6, Arg7, Arg8)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new FunctorClosure_Arg4_Bind4<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, PreArg1, PreArg2,
@@ -6622,7 +6752,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename F>
-Closure<R (Arg5, Arg6, Arg7, Arg8)>*
+Closure<R(Arg5, Arg6, Arg7, Arg8)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4) {
   return new FunctorClosure_Arg4_Bind4<true, typename std::decay<F>::type, R,
@@ -6635,9 +6765,9 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename F>
-ClosureFunc<R (Arg5, Arg6, Arg7, Arg8)>
+ClosureFunc<R(Arg5, Arg6, Arg7, Arg8)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
-  return ClosureFunc<R (Arg5, Arg6, Arg7, Arg8)>(NewPermanentClosure<R, Arg1,
+  return ClosureFunc<R(Arg5, Arg6, Arg7, Arg8)>(NewPermanentClosure<R, Arg1,
       Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, PreArg1, PreArg2, PreArg3,
       PreArg4>(std::forward<F>(functor), pa1, pa2, pa3, pa4));
 }
@@ -6654,10 +6784,10 @@ template <
       typename Arg4, typename Arg5, typename Arg6, typename Arg7,
       typename Arg8, typename Arg9 , typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4, typename PreArg5>
-class MethodClosure_Arg4_Bind5 : public Closure<R (Arg6, Arg7, Arg8, Arg9)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7, Arg8, Arg9);
-public:
+class MethodClosure_Arg4_Bind5 : public Closure<R(Arg6, Arg7, Arg8, Arg9)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+      Arg8, Arg9);
   MethodClosure_Arg4_Bind5(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -6668,11 +6798,11 @@ public:
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, arg6, arg7,
         arg8, arg9);
   }
-  virtual Closure<R (Arg6, Arg7, Arg8, Arg9)>* Clone() {
+  virtual Closure<R(Arg6, Arg7, Arg8, Arg9)>* Clone() {
     return new MethodClosure_Arg4_Bind5(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -6686,9 +6816,9 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename Arg9, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5>
-Closure<R (Arg6, Arg7, Arg8, Arg9)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7, Arg8, Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
+Closure<R(Arg6, Arg7, Arg8, Arg9)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7, Arg8, Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5) {
   return new MethodClosure_Arg4_Bind5<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, PreArg1, PreArg2, PreArg3,
@@ -6700,8 +6830,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename Arg9, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5>
-Closure<R (Arg6, Arg7, Arg8, Arg9)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg6, Arg7, Arg8, Arg9)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7, Arg8, Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5) {
   return new MethodClosure_Arg4_Bind5<true, R, Class, MethodClass, Arg1, Arg2,
@@ -6714,8 +6844,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename Arg9, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5>
-ClosureFunc<R (Arg6, Arg7, Arg8, Arg9)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg6, Arg7, Arg8, Arg9)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7, Arg8, Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5) {
   return ClosureFunc<R (Arg6, Arg7, Arg8, Arg9)>(NewPermanentClosure(object,
@@ -6732,10 +6862,10 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
       typename PreArg4, typename PreArg5>
-class FunctionClosure_Arg4_Bind5 : public Closure<R (Arg6, Arg7, Arg8, Arg9)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
+class FunctionClosure_Arg4_Bind5 : public Closure<R(Arg6, Arg7, Arg8, Arg9)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
       Arg9);
-public:
   FunctionClosure_Arg4_Bind5(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4, PreArg5 pa5):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -6745,11 +6875,11 @@ public:
         FunctionClosure_Arg4_Bind5> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, arg6, arg7, arg8, arg9);
   }
-  virtual Closure<R (Arg6, Arg7, Arg8, Arg9)>* Clone() {
+  virtual Closure<R(Arg6, Arg7, Arg8, Arg9)>* Clone() {
     return new FunctionClosure_Arg4_Bind5(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -6762,8 +6892,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5>
-Closure<R (Arg6, Arg7, Arg8, Arg9)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9),
+Closure<R(Arg6, Arg7, Arg8, Arg9)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
   return new FunctionClosure_Arg4_Bind5<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, Arg8, Arg9, PreArg1, PreArg2, PreArg3, PreArg4,
@@ -6774,8 +6904,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5>
-Closure<R (Arg6, Arg7, Arg8, Arg9)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+Closure<R(Arg6, Arg7, Arg8, Arg9)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
     Arg8, Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
   return new FunctionClosure_Arg4_Bind5<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
@@ -6787,10 +6917,10 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5>
-ClosureFunc<R (Arg6, Arg7, Arg8, Arg9)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
-    Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
-  return ClosureFunc<R (Arg6, Arg7, Arg8, Arg9)>(NewPermanentClosure(function,
+ClosureFunc<R(Arg6, Arg7, Arg8, Arg9)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9),
+    PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
+  return ClosureFunc<R(Arg6, Arg7, Arg8, Arg9)>(NewPermanentClosure(function,
       pa1, pa2, pa3, pa4, pa5));
 }
 
@@ -6804,7 +6934,7 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
       typename PreArg4, typename PreArg5>
-class FunctorClosure_Arg4_Bind5 : public Closure<R (Arg6, Arg7, Arg8, Arg9)> {
+class FunctorClosure_Arg4_Bind5 : public Closure<R(Arg6, Arg7, Arg8, Arg9)> {
 public:
   explicit FunctorClosure_Arg4_Bind5(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5)
@@ -6819,7 +6949,7 @@ public:
         FunctorClosure_Arg4_Bind5> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, arg6, arg7, arg8, arg9);
   }
-  virtual Closure<R (Arg6, Arg7, Arg8, Arg9)>* Clone() {
+  virtual Closure<R(Arg6, Arg7, Arg8, Arg9)>* Clone() {
     return new FunctorClosure_Arg4_Bind5(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -6836,7 +6966,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5, typename F>
-Closure<R (Arg6, Arg7, Arg8, Arg9)>*
+Closure<R(Arg6, Arg7, Arg8, Arg9)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
   return new FunctorClosure_Arg4_Bind5<false, typename std::decay<F>::type, R,
@@ -6849,7 +6979,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5, typename F>
-Closure<R (Arg6, Arg7, Arg8, Arg9)>*
+Closure<R(Arg6, Arg7, Arg8, Arg9)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5) {
   return new FunctorClosure_Arg4_Bind5<true, typename std::decay<F>::type, R,
@@ -6862,10 +6992,10 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5, typename F>
-ClosureFunc<R (Arg6, Arg7, Arg8, Arg9)>
+ClosureFunc<R(Arg6, Arg7, Arg8, Arg9)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
-  return ClosureFunc<R (Arg6, Arg7, Arg8, Arg9)>(NewPermanentClosure<R, Arg1,
+  return ClosureFunc<R(Arg6, Arg7, Arg8, Arg9)>(NewPermanentClosure<R, Arg1,
       Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, PreArg1, PreArg2,
       PreArg3, PreArg4, PreArg5>(std::forward<F>(functor), pa1, pa2, pa3, pa4,
       pa5));
@@ -6884,10 +7014,10 @@ template <
       typename Arg8, typename Arg9, typename Arg10 , typename PreArg1,
       typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
       typename PreArg6>
-class MethodClosure_Arg4_Bind6 : public Closure<R (Arg7, Arg8, Arg9, Arg10)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7, Arg8, Arg9, Arg10);
-public:
+class MethodClosure_Arg4_Bind6 : public Closure<R(Arg7, Arg8, Arg9, Arg10)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+      Arg8, Arg9, Arg10);
   MethodClosure_Arg4_Bind6(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -6898,11 +7028,11 @@ public:
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_, arg7,
         arg8, arg9, arg10);
   }
-  virtual Closure<R (Arg7, Arg8, Arg9, Arg10)>* Clone() {
+  virtual Closure<R(Arg7, Arg8, Arg9, Arg10)>* Clone() {
     return new MethodClosure_Arg4_Bind6(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -6918,10 +7048,10 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg7, typename Arg8, typename Arg9, typename Arg10,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6>
-Closure<R (Arg7, Arg8, Arg9, Arg10)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7, Arg8, Arg9, Arg10), PreArg1 pa1, PreArg2 pa2,
-    PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
+Closure<R(Arg7, Arg8, Arg9, Arg10)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7, Arg8, Arg9, Arg10), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
+    PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new MethodClosure_Arg4_Bind6<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, Arg10, PreArg1, PreArg2,
       PreArg3, PreArg4, PreArg5, PreArg6>(
@@ -6933,8 +7063,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg7, typename Arg8, typename Arg9, typename Arg10,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6>
-Closure<R (Arg7, Arg8, Arg9, Arg10)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg7, Arg8, Arg9, Arg10)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, Arg10), PreArg1 pa1, PreArg2 pa2,
     PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new MethodClosure_Arg4_Bind6<true, R, Class, MethodClass, Arg1, Arg2,
@@ -6948,8 +7078,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg7, typename Arg8, typename Arg9, typename Arg10,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6>
-ClosureFunc<R (Arg7, Arg8, Arg9, Arg10)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg7, Arg8, Arg9, Arg10)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7, Arg8, Arg9, Arg10), PreArg1 pa1, PreArg2 pa2,
     PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return ClosureFunc<R (Arg7, Arg8, Arg9, Arg10)>(NewPermanentClosure(object,
@@ -6966,10 +7096,10 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4, typename PreArg5, typename PreArg6>
-class FunctionClosure_Arg4_Bind6 : public Closure<R (Arg7, Arg8, Arg9, Arg10)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
+class FunctionClosure_Arg4_Bind6 : public Closure<R(Arg7, Arg8, Arg9, Arg10)> {
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
       Arg9, Arg10);
-public:
   FunctionClosure_Arg4_Bind6(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -6980,11 +7110,11 @@ public:
     return function_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_, arg7, arg8,
         arg9, arg10);
   }
-  virtual Closure<R (Arg7, Arg8, Arg9, Arg10)>* Clone() {
+  virtual Closure<R(Arg7, Arg8, Arg9, Arg10)>* Clone() {
     return new FunctionClosure_Arg4_Bind6(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -6998,8 +7128,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5, typename PreArg6>
-Closure<R (Arg7, Arg8, Arg9, Arg10)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
+Closure<R(Arg7, Arg8, Arg9, Arg10)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
     Arg10), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5,
     PreArg6 pa6) {
   return new FunctionClosure_Arg4_Bind6<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
@@ -7011,8 +7141,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5, typename PreArg6>
-Closure<R (Arg7, Arg8, Arg9, Arg10)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+Closure<R(Arg7, Arg8, Arg9, Arg10)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
     Arg8, Arg9, Arg10), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
   return new FunctionClosure_Arg4_Bind6<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
@@ -7024,11 +7154,11 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5, typename PreArg6>
-ClosureFunc<R (Arg7, Arg8, Arg9, Arg10)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
+ClosureFunc<R(Arg7, Arg8, Arg9, Arg10)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
     Arg10), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5,
     PreArg6 pa6) {
-  return ClosureFunc<R (Arg7, Arg8, Arg9, Arg10)>(NewPermanentClosure(function,
+  return ClosureFunc<R(Arg7, Arg8, Arg9, Arg10)>(NewPermanentClosure(function,
       pa1, pa2, pa3, pa4, pa5, pa6));
 }
 
@@ -7042,7 +7172,7 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4, typename PreArg5, typename PreArg6>
-class FunctorClosure_Arg4_Bind6 : public Closure<R (Arg7, Arg8, Arg9, Arg10)> {
+class FunctorClosure_Arg4_Bind6 : public Closure<R(Arg7, Arg8, Arg9, Arg10)> {
 public:
   explicit FunctorClosure_Arg4_Bind6(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6)
@@ -7058,7 +7188,7 @@ public:
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_, arg7, arg8, arg9,
         arg10);
   }
-  virtual Closure<R (Arg7, Arg8, Arg9, Arg10)>* Clone() {
+  virtual Closure<R(Arg7, Arg8, Arg9, Arg10)>* Clone() {
     return new FunctorClosure_Arg4_Bind6(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -7077,7 +7207,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5, typename PreArg6,
     typename F>
-Closure<R (Arg7, Arg8, Arg9, Arg10)>*
+Closure<R(Arg7, Arg8, Arg9, Arg10)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
   return new FunctorClosure_Arg4_Bind6<false, typename std::decay<F>::type, R,
@@ -7091,7 +7221,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5, typename PreArg6,
     typename F>
-Closure<R (Arg7, Arg8, Arg9, Arg10)>*
+Closure<R(Arg7, Arg8, Arg9, Arg10)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new FunctorClosure_Arg4_Bind6<true, typename std::decay<F>::type, R,
@@ -7105,10 +7235,10 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5, typename PreArg6,
     typename F>
-ClosureFunc<R (Arg7, Arg8, Arg9, Arg10)>
+ClosureFunc<R(Arg7, Arg8, Arg9, Arg10)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
-  return ClosureFunc<R (Arg7, Arg8, Arg9, Arg10)>(NewPermanentClosure<R, Arg1,
+  return ClosureFunc<R(Arg7, Arg8, Arg9, Arg10)>(NewPermanentClosure<R, Arg1,
       Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, Arg10, PreArg1, PreArg2,
       PreArg3, PreArg4, PreArg5, PreArg6>(std::forward<F>(functor), pa1, pa2,
       pa3, pa4, pa5, pa6));
@@ -7124,10 +7254,10 @@ template <
   typename Class,
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4, typename Arg5 >
-class MethodClosure_Arg5_Bind0 : public Closure<R (Arg1, Arg2, Arg3, Arg4,
+class MethodClosure_Arg5_Bind0 : public Closure<R(Arg1, Arg2, Arg3, Arg4,
     Arg5)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5);
-public:
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5);
   MethodClosure_Arg5_Bind0(Class *object, MethodType method):
     object_(object), method_(method) {}
   virtual R Run(Arg1 arg1, Arg2 arg2, Arg3 arg3, Arg4 arg4, Arg5 arg5) {
@@ -7135,19 +7265,19 @@ public:
         MethodClosure_Arg5_Bind0> self_deleter(this);
     return (object_->*method_)(arg1, arg2, arg3, arg4, arg5);
   }
-  virtual Closure<R (Arg1, Arg2, Arg3, Arg4, Arg5)>* Clone() {
+  virtual Closure<R(Arg1, Arg2, Arg3, Arg4, Arg5)>* Clone() {
     return new MethodClosure_Arg5_Bind0(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
 };
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5>
-Closure<R (Arg1, Arg2, Arg3, Arg4, Arg5)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+Closure<R(Arg1, Arg2, Arg3, Arg4, Arg5)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5)) {
   return new MethodClosure_Arg5_Bind0<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5>(
@@ -7156,8 +7286,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5>
-Closure<R (Arg1, Arg2, Arg3, Arg4, Arg5)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg1, Arg2, Arg3, Arg4, Arg5)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5)) {
   return new MethodClosure_Arg5_Bind0<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5>(
@@ -7166,8 +7296,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5>
-ClosureFunc<R (Arg1, Arg2, Arg3, Arg4, Arg5)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg1, Arg2, Arg3, Arg4, Arg5)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5)) {
   return ClosureFunc<R (Arg1, Arg2, Arg3, Arg4,
       Arg5)>(NewPermanentClosure(object, method));
@@ -7181,10 +7311,10 @@ template <
   bool Permanent,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5>
-class FunctionClosure_Arg5_Bind0 : public Closure<R (Arg1, Arg2, Arg3, Arg4,
+class FunctionClosure_Arg5_Bind0 : public Closure<R(Arg1, Arg2, Arg3, Arg4,
     Arg5)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5);
-public:
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5);
   FunctionClosure_Arg5_Bind0(FunctionType function):
     function_(function) {}
   virtual R Run(Arg1 arg1, Arg2 arg2, Arg3 arg3, Arg4 arg4, Arg5 arg5) {
@@ -7192,35 +7322,35 @@ public:
         FunctionClosure_Arg5_Bind0> self_deleter(this);
     return function_(arg1, arg2, arg3, arg4, arg5);
   }
-  virtual Closure<R (Arg1, Arg2, Arg3, Arg4, Arg5)>* Clone() {
+  virtual Closure<R(Arg1, Arg2, Arg3, Arg4, Arg5)>* Clone() {
     return new FunctionClosure_Arg5_Bind0(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
 };
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5>
-Closure<R (Arg1, Arg2, Arg3, Arg4, Arg5)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5)) {
+Closure<R(Arg1, Arg2, Arg3, Arg4, Arg5)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5)) {
   return new FunctionClosure_Arg5_Bind0<false, R, Arg1, Arg2, Arg3, Arg4,
       Arg5>(function);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5>
-Closure<R (Arg1, Arg2, Arg3, Arg4, Arg5)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5)) {
+Closure<R(Arg1, Arg2, Arg3, Arg4, Arg5)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5)) {
   return new FunctionClosure_Arg5_Bind0<true, R, Arg1, Arg2, Arg3, Arg4,
       Arg5>(function);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5>
-ClosureFunc<R (Arg1, Arg2, Arg3, Arg4, Arg5)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5)) {
-  return ClosureFunc<R (Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg1, Arg2, Arg3, Arg4, Arg5)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5)) {
+  return ClosureFunc<R(Arg1, Arg2, Arg3, Arg4,
       Arg5)>(NewPermanentClosure(function));
 }
 
@@ -7232,7 +7362,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5>
-class FunctorClosure_Arg5_Bind0 : public Closure<R (Arg1, Arg2, Arg3, Arg4,
+class FunctorClosure_Arg5_Bind0 : public Closure<R(Arg1, Arg2, Arg3, Arg4,
     Arg5)> {
 public:
   explicit FunctorClosure_Arg5_Bind0(const F& functor)
@@ -7244,7 +7374,7 @@ public:
         FunctorClosure_Arg5_Bind0> self_deleter(this);
     return functor_(arg1, arg2, arg3, arg4, arg5);
   }
-  virtual Closure<R (Arg1, Arg2, Arg3, Arg4, Arg5)>* Clone() {
+  virtual Closure<R(Arg1, Arg2, Arg3, Arg4, Arg5)>* Clone() {
     return new FunctorClosure_Arg5_Bind0(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -7254,7 +7384,7 @@ private:
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename F>
-Closure<R (Arg1, Arg2, Arg3, Arg4, Arg5)>*
+Closure<R(Arg1, Arg2, Arg3, Arg4, Arg5)>*
 NewClosure(F&& functor) {
   return new FunctorClosure_Arg5_Bind0<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5>(
@@ -7263,7 +7393,7 @@ NewClosure(F&& functor) {
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename F>
-Closure<R (Arg1, Arg2, Arg3, Arg4, Arg5)>*
+Closure<R(Arg1, Arg2, Arg3, Arg4, Arg5)>*
 NewPermanentClosure(F&& functor) {
   return new FunctorClosure_Arg5_Bind0<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5>(
@@ -7272,9 +7402,9 @@ NewPermanentClosure(F&& functor) {
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename F>
-ClosureFunc<R (Arg1, Arg2, Arg3, Arg4, Arg5)>
+ClosureFunc<R(Arg1, Arg2, Arg3, Arg4, Arg5)>
 BindClosure(F&& functor) {
-  return ClosureFunc<R (Arg1, Arg2, Arg3, Arg4, Arg5)>(NewPermanentClosure<R,
+  return ClosureFunc<R(Arg1, Arg2, Arg3, Arg4, Arg5)>(NewPermanentClosure<R,
       Arg1, Arg2, Arg3, Arg4, Arg5>(std::forward<F>(functor)));
 }
 
@@ -7288,10 +7418,10 @@ template <
   typename Class,
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4, typename Arg5, typename Arg6 , typename PreArg1>
-class MethodClosure_Arg5_Bind1 : public Closure<R (Arg2, Arg3, Arg4, Arg5,
+class MethodClosure_Arg5_Bind1 : public Closure<R(Arg2, Arg3, Arg4, Arg5,
     Arg6)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
-public:
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
   MethodClosure_Arg5_Bind1(Class *object, MethodType method, PreArg1 pa1):
     object_(object), method_(method), pa_1_(pa1) {}
   virtual R Run(Arg2 arg2, Arg3 arg3, Arg4 arg4, Arg5 arg5, Arg6 arg6) {
@@ -7299,11 +7429,11 @@ public:
         MethodClosure_Arg5_Bind1> self_deleter(this);
     return (object_->*method_)(pa_1_, arg2, arg3, arg4, arg5, arg6);
   }
-  virtual Closure<R (Arg2, Arg3, Arg4, Arg5, Arg6)>* Clone() {
+  virtual Closure<R(Arg2, Arg3, Arg4, Arg5, Arg6)>* Clone() {
     return new MethodClosure_Arg5_Bind1(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -7312,9 +7442,9 @@ private:
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename PreArg1>
-Closure<R (Arg2, Arg3, Arg4, Arg5, Arg6)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6), PreArg1 pa1) {
+Closure<R(Arg2, Arg3, Arg4, Arg5, Arg6)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6), PreArg1 pa1) {
   return new MethodClosure_Arg5_Bind1<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, PreArg1>(
     object, method, pa1);
@@ -7323,8 +7453,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename PreArg1>
-Closure<R (Arg2, Arg3, Arg4, Arg5, Arg6)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg2, Arg3, Arg4, Arg5, Arg6)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6), PreArg1 pa1) {
   return new MethodClosure_Arg5_Bind1<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, PreArg1>(
@@ -7334,8 +7464,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename PreArg1>
-ClosureFunc<R (Arg2, Arg3, Arg4, Arg5, Arg6)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg2, Arg3, Arg4, Arg5, Arg6)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6), PreArg1 pa1) {
   return ClosureFunc<R (Arg2, Arg3, Arg4, Arg5,
       Arg6)>(NewPermanentClosure(object, method, pa1));
@@ -7349,10 +7479,10 @@ template <
   bool Permanent,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename PreArg1>
-class FunctionClosure_Arg5_Bind1 : public Closure<R (Arg2, Arg3, Arg4, Arg5,
+class FunctionClosure_Arg5_Bind1 : public Closure<R(Arg2, Arg3, Arg4, Arg5,
     Arg6)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
-public:
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
   FunctionClosure_Arg5_Bind1(FunctionType function, PreArg1 pa1):
     function_(function), pa_1_(pa1) {}
   virtual R Run(Arg2 arg2, Arg3 arg3, Arg4 arg4, Arg5 arg5, Arg6 arg6) {
@@ -7360,27 +7490,27 @@ public:
         FunctionClosure_Arg5_Bind1> self_deleter(this);
     return function_(pa_1_, arg2, arg3, arg4, arg5, arg6);
   }
-  virtual Closure<R (Arg2, Arg3, Arg4, Arg5, Arg6)>* Clone() {
+  virtual Closure<R(Arg2, Arg3, Arg4, Arg5, Arg6)>* Clone() {
     return new FunctionClosure_Arg5_Bind1(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
 };
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1>
-Closure<R (Arg2, Arg3, Arg4, Arg5, Arg6)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1) {
+Closure<R(Arg2, Arg3, Arg4, Arg5, Arg6)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1) {
   return new FunctionClosure_Arg5_Bind1<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, PreArg1>(function, pa1);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1>
-Closure<R (Arg2, Arg3, Arg4, Arg5, Arg6)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6),
+Closure<R(Arg2, Arg3, Arg4, Arg5, Arg6)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6),
     PreArg1 pa1) {
   return new FunctionClosure_Arg5_Bind1<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, PreArg1>(function, pa1);
@@ -7388,9 +7518,9 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6),
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1>
-ClosureFunc<R (Arg2, Arg3, Arg4, Arg5, Arg6)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1) {
-  return ClosureFunc<R (Arg2, Arg3, Arg4, Arg5,
+ClosureFunc<R(Arg2, Arg3, Arg4, Arg5, Arg6)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6), PreArg1 pa1) {
+  return ClosureFunc<R(Arg2, Arg3, Arg4, Arg5,
       Arg6)>(NewPermanentClosure(function, pa1));
 }
 
@@ -7402,7 +7532,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename PreArg1>
-class FunctorClosure_Arg5_Bind1 : public Closure<R (Arg2, Arg3, Arg4, Arg5,
+class FunctorClosure_Arg5_Bind1 : public Closure<R(Arg2, Arg3, Arg4, Arg5,
     Arg6)> {
 public:
   explicit FunctorClosure_Arg5_Bind1(const F& functor, PreArg1 pa1)
@@ -7414,7 +7544,7 @@ public:
         FunctorClosure_Arg5_Bind1> self_deleter(this);
     return functor_(pa_1_, arg2, arg3, arg4, arg5, arg6);
   }
-  virtual Closure<R (Arg2, Arg3, Arg4, Arg5, Arg6)>* Clone() {
+  virtual Closure<R(Arg2, Arg3, Arg4, Arg5, Arg6)>* Clone() {
     return new FunctorClosure_Arg5_Bind1(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -7425,7 +7555,7 @@ private:
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1, typename F>
-Closure<R (Arg2, Arg3, Arg4, Arg5, Arg6)>*
+Closure<R(Arg2, Arg3, Arg4, Arg5, Arg6)>*
 NewClosure(F&& functor, PreArg1 pa1) {
   return new FunctorClosure_Arg5_Bind1<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, PreArg1>(
@@ -7434,7 +7564,7 @@ NewClosure(F&& functor, PreArg1 pa1) {
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1, typename F>
-Closure<R (Arg2, Arg3, Arg4, Arg5, Arg6)>*
+Closure<R(Arg2, Arg3, Arg4, Arg5, Arg6)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1) {
   return new FunctorClosure_Arg5_Bind1<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, PreArg1>(
@@ -7443,9 +7573,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1) {
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename PreArg1, typename F>
-ClosureFunc<R (Arg2, Arg3, Arg4, Arg5, Arg6)>
+ClosureFunc<R(Arg2, Arg3, Arg4, Arg5, Arg6)>
 BindClosure(F&& functor, PreArg1 pa1) {
-  return ClosureFunc<R (Arg2, Arg3, Arg4, Arg5, Arg6)>(NewPermanentClosure<R,
+  return ClosureFunc<R(Arg2, Arg3, Arg4, Arg5, Arg6)>(NewPermanentClosure<R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, PreArg1>(std::forward<F>(functor),
       pa1));
 }
@@ -7461,11 +7591,10 @@ template <
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4, typename Arg5, typename Arg6, typename Arg7 ,
       typename PreArg1, typename PreArg2>
-class MethodClosure_Arg5_Bind2 : public Closure<R (Arg3, Arg4, Arg5, Arg6,
+class MethodClosure_Arg5_Bind2 : public Closure<R(Arg3, Arg4, Arg5, Arg6,
     Arg7)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7);
-public:
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7);
   MethodClosure_Arg5_Bind2(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2) {}
@@ -7474,11 +7603,11 @@ public:
         MethodClosure_Arg5_Bind2> self_deleter(this);
     return (object_->*method_)(pa_1_, pa_2_, arg3, arg4, arg5, arg6, arg7);
   }
-  virtual Closure<R (Arg3, Arg4, Arg5, Arg6, Arg7)>* Clone() {
+  virtual Closure<R(Arg3, Arg4, Arg5, Arg6, Arg7)>* Clone() {
     return new MethodClosure_Arg5_Bind2(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -7488,9 +7617,9 @@ private:
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename PreArg1, typename PreArg2>
-Closure<R (Arg3, Arg4, Arg5, Arg6, Arg7)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7), PreArg1 pa1, PreArg2 pa2) {
+Closure<R(Arg3, Arg4, Arg5, Arg6, Arg7)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7), PreArg1 pa1, PreArg2 pa2) {
   return new MethodClosure_Arg5_Bind2<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, PreArg1, PreArg2>(
     object, method, pa1, pa2);
@@ -7499,8 +7628,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename PreArg1, typename PreArg2>
-Closure<R (Arg3, Arg4, Arg5, Arg6, Arg7)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg3, Arg4, Arg5, Arg6, Arg7)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7), PreArg1 pa1, PreArg2 pa2) {
   return new MethodClosure_Arg5_Bind2<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, PreArg1, PreArg2>(
@@ -7510,8 +7639,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename PreArg1, typename PreArg2>
-ClosureFunc<R (Arg3, Arg4, Arg5, Arg6, Arg7)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg3, Arg4, Arg5, Arg6, Arg7)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7), PreArg1 pa1, PreArg2 pa2) {
   return ClosureFunc<R (Arg3, Arg4, Arg5, Arg6,
       Arg7)>(NewPermanentClosure(object, method, pa1, pa2));
@@ -7526,10 +7655,10 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename Arg7, typename PreArg1,
       typename PreArg2>
-class FunctionClosure_Arg5_Bind2 : public Closure<R (Arg3, Arg4, Arg5, Arg6,
+class FunctionClosure_Arg5_Bind2 : public Closure<R(Arg3, Arg4, Arg5, Arg6,
     Arg7)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7);
-public:
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7);
   FunctionClosure_Arg5_Bind2(FunctionType function, PreArg1 pa1, PreArg2 pa2):
     function_(function), pa_1_(pa1), pa_2_(pa2) {}
   virtual R Run(Arg3 arg3, Arg4 arg4, Arg5 arg5, Arg6 arg6, Arg7 arg7) {
@@ -7537,11 +7666,11 @@ public:
         FunctionClosure_Arg5_Bind2> self_deleter(this);
     return function_(pa_1_, pa_2_, arg3, arg4, arg5, arg6, arg7);
   }
-  virtual Closure<R (Arg3, Arg4, Arg5, Arg6, Arg7)>* Clone() {
+  virtual Closure<R(Arg3, Arg4, Arg5, Arg6, Arg7)>* Clone() {
     return new FunctionClosure_Arg5_Bind2(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -7550,9 +7679,9 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2>
-Closure<R (Arg3, Arg4, Arg5, Arg6, Arg7)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
-    PreArg1 pa1, PreArg2 pa2) {
+Closure<R(Arg3, Arg4, Arg5, Arg6, Arg7)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7), PreArg1 pa1,
+    PreArg2 pa2) {
   return new FunctionClosure_Arg5_Bind2<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, PreArg1, PreArg2>(function, pa1, pa2);
 }
@@ -7560,8 +7689,8 @@ NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2>
-Closure<R (Arg3, Arg4, Arg5, Arg6, Arg7)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
+Closure<R(Arg3, Arg4, Arg5, Arg6, Arg7)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
     PreArg1 pa1, PreArg2 pa2) {
   return new FunctionClosure_Arg5_Bind2<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, PreArg1, PreArg2>(function, pa1, pa2);
@@ -7570,10 +7699,10 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2>
-ClosureFunc<R (Arg3, Arg4, Arg5, Arg6, Arg7)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
+ClosureFunc<R(Arg3, Arg4, Arg5, Arg6, Arg7)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
     PreArg1 pa1, PreArg2 pa2) {
-  return ClosureFunc<R (Arg3, Arg4, Arg5, Arg6,
+  return ClosureFunc<R(Arg3, Arg4, Arg5, Arg6,
       Arg7)>(NewPermanentClosure(function, pa1, pa2));
 }
 
@@ -7586,7 +7715,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename Arg7, typename PreArg1,
       typename PreArg2>
-class FunctorClosure_Arg5_Bind2 : public Closure<R (Arg3, Arg4, Arg5, Arg6,
+class FunctorClosure_Arg5_Bind2 : public Closure<R(Arg3, Arg4, Arg5, Arg6,
     Arg7)> {
 public:
   explicit FunctorClosure_Arg5_Bind2(const F& functor, PreArg1 pa1, PreArg2 pa2)
@@ -7598,7 +7727,7 @@ public:
         FunctorClosure_Arg5_Bind2> self_deleter(this);
     return functor_(pa_1_, pa_2_, arg3, arg4, arg5, arg6, arg7);
   }
-  virtual Closure<R (Arg3, Arg4, Arg5, Arg6, Arg7)>* Clone() {
+  virtual Closure<R(Arg3, Arg4, Arg5, Arg6, Arg7)>* Clone() {
     return new FunctorClosure_Arg5_Bind2(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -7611,7 +7740,7 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename F>
-Closure<R (Arg3, Arg4, Arg5, Arg6, Arg7)>*
+Closure<R(Arg3, Arg4, Arg5, Arg6, Arg7)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
   return new FunctorClosure_Arg5_Bind2<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, PreArg1, PreArg2>(
@@ -7621,7 +7750,7 @@ NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename F>
-Closure<R (Arg3, Arg4, Arg5, Arg6, Arg7)>*
+Closure<R(Arg3, Arg4, Arg5, Arg6, Arg7)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
   return new FunctorClosure_Arg5_Bind2<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, PreArg1, PreArg2>(
@@ -7631,9 +7760,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename PreArg2, typename F>
-ClosureFunc<R (Arg3, Arg4, Arg5, Arg6, Arg7)>
+ClosureFunc<R(Arg3, Arg4, Arg5, Arg6, Arg7)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
-  return ClosureFunc<R (Arg3, Arg4, Arg5, Arg6, Arg7)>(NewPermanentClosure<R,
+  return ClosureFunc<R(Arg3, Arg4, Arg5, Arg6, Arg7)>(NewPermanentClosure<R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, PreArg1,
       PreArg2>(std::forward<F>(functor), pa1, pa2));
 }
@@ -7649,11 +7778,11 @@ template <
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4, typename Arg5, typename Arg6, typename Arg7,
       typename Arg8 , typename PreArg1, typename PreArg2, typename PreArg3>
-class MethodClosure_Arg5_Bind3 : public Closure<R (Arg4, Arg5, Arg6, Arg7,
+class MethodClosure_Arg5_Bind3 : public Closure<R(Arg4, Arg5, Arg6, Arg7,
     Arg8)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7, Arg8);
-public:
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+      Arg8);
   MethodClosure_Arg5_Bind3(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -7663,11 +7792,11 @@ public:
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, arg4, arg5, arg6, arg7,
         arg8);
   }
-  virtual Closure<R (Arg4, Arg5, Arg6, Arg7, Arg8)>* Clone() {
+  virtual Closure<R(Arg4, Arg5, Arg6, Arg7, Arg8)>* Clone() {
     return new MethodClosure_Arg5_Bind3(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -7679,9 +7808,9 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename PreArg1, typename PreArg2,
     typename PreArg3>
-Closure<R (Arg4, Arg5, Arg6, Arg7, Arg8)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7, Arg8), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
+Closure<R(Arg4, Arg5, Arg6, Arg7, Arg8)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7, Arg8), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new MethodClosure_Arg5_Bind3<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, PreArg1, PreArg2, PreArg3>(
     object, method, pa1, pa2, pa3);
@@ -7691,8 +7820,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename PreArg1, typename PreArg2,
     typename PreArg3>
-Closure<R (Arg4, Arg5, Arg6, Arg7, Arg8)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg4, Arg5, Arg6, Arg7, Arg8)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7, Arg8), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new MethodClosure_Arg5_Bind3<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, PreArg1, PreArg2, PreArg3>(
@@ -7703,8 +7832,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename PreArg1, typename PreArg2,
     typename PreArg3>
-ClosureFunc<R (Arg4, Arg5, Arg6, Arg7, Arg8)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg4, Arg5, Arg6, Arg7, Arg8)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7, Arg8), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return ClosureFunc<R (Arg4, Arg5, Arg6, Arg7,
       Arg8)>(NewPermanentClosure(object, method, pa1, pa2, pa3));
@@ -7719,10 +7848,10 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename PreArg1, typename PreArg2, typename PreArg3>
-class FunctionClosure_Arg5_Bind3 : public Closure<R (Arg4, Arg5, Arg6, Arg7,
+class FunctionClosure_Arg5_Bind3 : public Closure<R(Arg4, Arg5, Arg6, Arg7,
     Arg8)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8);
-public:
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8);
   FunctionClosure_Arg5_Bind3(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -7731,11 +7860,11 @@ public:
         FunctionClosure_Arg5_Bind3> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_, arg4, arg5, arg6, arg7, arg8);
   }
-  virtual Closure<R (Arg4, Arg5, Arg6, Arg7, Arg8)>* Clone() {
+  virtual Closure<R(Arg4, Arg5, Arg6, Arg7, Arg8)>* Clone() {
     return new FunctionClosure_Arg5_Bind3(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -7745,8 +7874,8 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3>
-Closure<R (Arg4, Arg5, Arg6, Arg7, Arg8)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
+Closure<R(Arg4, Arg5, Arg6, Arg7, Arg8)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new FunctionClosure_Arg5_Bind3<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, Arg8, PreArg1, PreArg2, PreArg3>(function, pa1, pa2, pa3);
@@ -7755,8 +7884,8 @@ NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3>
-Closure<R (Arg4, Arg5, Arg6, Arg7, Arg8)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+Closure<R(Arg4, Arg5, Arg6, Arg7, Arg8)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
     Arg8), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new FunctionClosure_Arg5_Bind3<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, Arg8, PreArg1, PreArg2, PreArg3>(function, pa1, pa2, pa3);
@@ -7765,10 +7894,10 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3>
-ClosureFunc<R (Arg4, Arg5, Arg6, Arg7, Arg8)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
+ClosureFunc<R(Arg4, Arg5, Arg6, Arg7, Arg8)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
-  return ClosureFunc<R (Arg4, Arg5, Arg6, Arg7,
+  return ClosureFunc<R(Arg4, Arg5, Arg6, Arg7,
       Arg8)>(NewPermanentClosure(function, pa1, pa2, pa3));
 }
 
@@ -7781,7 +7910,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename PreArg1, typename PreArg2, typename PreArg3>
-class FunctorClosure_Arg5_Bind3 : public Closure<R (Arg4, Arg5, Arg6, Arg7,
+class FunctorClosure_Arg5_Bind3 : public Closure<R(Arg4, Arg5, Arg6, Arg7,
     Arg8)> {
 public:
   explicit FunctorClosure_Arg5_Bind3(const F& functor, PreArg1 pa1,
@@ -7795,7 +7924,7 @@ public:
         FunctorClosure_Arg5_Bind3> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, arg4, arg5, arg6, arg7, arg8);
   }
-  virtual Closure<R (Arg4, Arg5, Arg6, Arg7, Arg8)>* Clone() {
+  virtual Closure<R(Arg4, Arg5, Arg6, Arg7, Arg8)>* Clone() {
     return new FunctorClosure_Arg5_Bind3(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -7809,7 +7938,7 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename F>
-Closure<R (Arg4, Arg5, Arg6, Arg7, Arg8)>*
+Closure<R(Arg4, Arg5, Arg6, Arg7, Arg8)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new FunctorClosure_Arg5_Bind3<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, PreArg1, PreArg2,
@@ -7820,7 +7949,7 @@ NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename F>
-Closure<R (Arg4, Arg5, Arg6, Arg7, Arg8)>*
+Closure<R(Arg4, Arg5, Arg6, Arg7, Arg8)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new FunctorClosure_Arg5_Bind3<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, PreArg1, PreArg2,
@@ -7831,9 +7960,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename PreArg3, typename F>
-ClosureFunc<R (Arg4, Arg5, Arg6, Arg7, Arg8)>
+ClosureFunc<R(Arg4, Arg5, Arg6, Arg7, Arg8)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
-  return ClosureFunc<R (Arg4, Arg5, Arg6, Arg7, Arg8)>(NewPermanentClosure<R,
+  return ClosureFunc<R(Arg4, Arg5, Arg6, Arg7, Arg8)>(NewPermanentClosure<R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, PreArg1, PreArg2,
       PreArg3>(std::forward<F>(functor), pa1, pa2, pa3));
 }
@@ -7850,11 +7979,11 @@ template <
       typename Arg4, typename Arg5, typename Arg6, typename Arg7,
       typename Arg8, typename Arg9 , typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4>
-class MethodClosure_Arg5_Bind4 : public Closure<R (Arg5, Arg6, Arg7, Arg8,
+class MethodClosure_Arg5_Bind4 : public Closure<R(Arg5, Arg6, Arg7, Arg8,
     Arg9)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7, Arg8, Arg9);
-public:
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+      Arg8, Arg9);
   MethodClosure_Arg5_Bind4(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -7865,11 +7994,11 @@ public:
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_, arg5, arg6, arg7,
         arg8, arg9);
   }
-  virtual Closure<R (Arg5, Arg6, Arg7, Arg8, Arg9)>* Clone() {
+  virtual Closure<R(Arg5, Arg6, Arg7, Arg8, Arg9)>* Clone() {
     return new MethodClosure_Arg5_Bind4(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -7882,9 +8011,9 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename Arg9, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4>
-Closure<R (Arg5, Arg6, Arg7, Arg8, Arg9)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7, Arg8, Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
+Closure<R(Arg5, Arg6, Arg7, Arg8, Arg9)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7, Arg8, Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4) {
   return new MethodClosure_Arg5_Bind4<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, PreArg1, PreArg2, PreArg3,
@@ -7896,8 +8025,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename Arg9, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4>
-Closure<R (Arg5, Arg6, Arg7, Arg8, Arg9)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg5, Arg6, Arg7, Arg8, Arg9)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7, Arg8, Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4) {
   return new MethodClosure_Arg5_Bind4<true, R, Class, MethodClass, Arg1, Arg2,
@@ -7910,8 +8039,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename Arg9, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4>
-ClosureFunc<R (Arg5, Arg6, Arg7, Arg8, Arg9)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg5, Arg6, Arg7, Arg8, Arg9)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7, Arg8, Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4) {
   return ClosureFunc<R (Arg5, Arg6, Arg7, Arg8,
@@ -7928,11 +8057,11 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
       typename PreArg4>
-class FunctionClosure_Arg5_Bind4 : public Closure<R (Arg5, Arg6, Arg7, Arg8,
+class FunctionClosure_Arg5_Bind4 : public Closure<R(Arg5, Arg6, Arg7, Arg8,
     Arg9)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
       Arg9);
-public:
   FunctionClosure_Arg5_Bind4(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4) {}
@@ -7941,11 +8070,11 @@ public:
         FunctionClosure_Arg5_Bind4> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_, pa_4_, arg5, arg6, arg7, arg8, arg9);
   }
-  virtual Closure<R (Arg5, Arg6, Arg7, Arg8, Arg9)>* Clone() {
+  virtual Closure<R(Arg5, Arg6, Arg7, Arg8, Arg9)>* Clone() {
     return new FunctionClosure_Arg5_Bind4(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -7957,8 +8086,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4>
-Closure<R (Arg5, Arg6, Arg7, Arg8, Arg9)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9),
+Closure<R(Arg5, Arg6, Arg7, Arg8, Arg9)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new FunctionClosure_Arg5_Bind4<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, Arg8, Arg9, PreArg1, PreArg2, PreArg3, PreArg4>(function,
@@ -7969,8 +8098,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4>
-Closure<R (Arg5, Arg6, Arg7, Arg8, Arg9)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+Closure<R(Arg5, Arg6, Arg7, Arg8, Arg9)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
     Arg8, Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new FunctionClosure_Arg5_Bind4<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, Arg8, Arg9, PreArg1, PreArg2, PreArg3, PreArg4>(function,
@@ -7981,10 +8110,10 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4>
-ClosureFunc<R (Arg5, Arg6, Arg7, Arg8, Arg9)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
-    Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
-  return ClosureFunc<R (Arg5, Arg6, Arg7, Arg8,
+ClosureFunc<R(Arg5, Arg6, Arg7, Arg8, Arg9)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9),
+    PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
+  return ClosureFunc<R(Arg5, Arg6, Arg7, Arg8,
       Arg9)>(NewPermanentClosure(function, pa1, pa2, pa3, pa4));
 }
 
@@ -7998,7 +8127,7 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
       typename PreArg4>
-class FunctorClosure_Arg5_Bind4 : public Closure<R (Arg5, Arg6, Arg7, Arg8,
+class FunctorClosure_Arg5_Bind4 : public Closure<R(Arg5, Arg6, Arg7, Arg8,
     Arg9)> {
 public:
   explicit FunctorClosure_Arg5_Bind4(const F& functor, PreArg1 pa1,
@@ -8013,7 +8142,7 @@ public:
         FunctorClosure_Arg5_Bind4> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_, arg5, arg6, arg7, arg8, arg9);
   }
-  virtual Closure<R (Arg5, Arg6, Arg7, Arg8, Arg9)>* Clone() {
+  virtual Closure<R(Arg5, Arg6, Arg7, Arg8, Arg9)>* Clone() {
     return new FunctorClosure_Arg5_Bind4(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -8029,7 +8158,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename F>
-Closure<R (Arg5, Arg6, Arg7, Arg8, Arg9)>*
+Closure<R(Arg5, Arg6, Arg7, Arg8, Arg9)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new FunctorClosure_Arg5_Bind4<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, PreArg1, PreArg2,
@@ -8041,7 +8170,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename F>
-Closure<R (Arg5, Arg6, Arg7, Arg8, Arg9)>*
+Closure<R(Arg5, Arg6, Arg7, Arg8, Arg9)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4) {
   return new FunctorClosure_Arg5_Bind4<true, typename std::decay<F>::type, R,
@@ -8054,9 +8183,9 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename F>
-ClosureFunc<R (Arg5, Arg6, Arg7, Arg8, Arg9)>
+ClosureFunc<R(Arg5, Arg6, Arg7, Arg8, Arg9)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
-  return ClosureFunc<R (Arg5, Arg6, Arg7, Arg8, Arg9)>(NewPermanentClosure<R,
+  return ClosureFunc<R(Arg5, Arg6, Arg7, Arg8, Arg9)>(NewPermanentClosure<R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, PreArg1, PreArg2,
       PreArg3, PreArg4>(std::forward<F>(functor), pa1, pa2, pa3, pa4));
 }
@@ -8073,11 +8202,11 @@ template <
       typename Arg4, typename Arg5, typename Arg6, typename Arg7,
       typename Arg8, typename Arg9, typename Arg10 , typename PreArg1,
       typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5>
-class MethodClosure_Arg5_Bind5 : public Closure<R (Arg6, Arg7, Arg8, Arg9,
+class MethodClosure_Arg5_Bind5 : public Closure<R(Arg6, Arg7, Arg8, Arg9,
     Arg10)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7, Arg8, Arg9, Arg10);
-public:
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+      Arg8, Arg9, Arg10);
   MethodClosure_Arg5_Bind5(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -8088,11 +8217,11 @@ public:
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, arg6, arg7,
         arg8, arg9, arg10);
   }
-  virtual Closure<R (Arg6, Arg7, Arg8, Arg9, Arg10)>* Clone() {
+  virtual Closure<R(Arg6, Arg7, Arg8, Arg9, Arg10)>* Clone() {
     return new MethodClosure_Arg5_Bind5(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -8107,10 +8236,10 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg7, typename Arg8, typename Arg9, typename Arg10,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5>
-Closure<R (Arg6, Arg7, Arg8, Arg9, Arg10)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7, Arg8, Arg9, Arg10), PreArg1 pa1, PreArg2 pa2,
-    PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
+Closure<R(Arg6, Arg7, Arg8, Arg9, Arg10)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7, Arg8, Arg9, Arg10), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
+    PreArg4 pa4, PreArg5 pa5) {
   return new MethodClosure_Arg5_Bind5<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, Arg10, PreArg1, PreArg2,
       PreArg3, PreArg4, PreArg5>(
@@ -8122,8 +8251,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg7, typename Arg8, typename Arg9, typename Arg10,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5>
-Closure<R (Arg6, Arg7, Arg8, Arg9, Arg10)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg6, Arg7, Arg8, Arg9, Arg10)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, Arg10), PreArg1 pa1, PreArg2 pa2,
     PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
   return new MethodClosure_Arg5_Bind5<true, R, Class, MethodClass, Arg1, Arg2,
@@ -8137,8 +8266,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg7, typename Arg8, typename Arg9, typename Arg10,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5>
-ClosureFunc<R (Arg6, Arg7, Arg8, Arg9, Arg10)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg6, Arg7, Arg8, Arg9, Arg10)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7, Arg8, Arg9, Arg10), PreArg1 pa1, PreArg2 pa2,
     PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
   return ClosureFunc<R (Arg6, Arg7, Arg8, Arg9,
@@ -8155,11 +8284,11 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4, typename PreArg5>
-class FunctionClosure_Arg5_Bind5 : public Closure<R (Arg6, Arg7, Arg8, Arg9,
+class FunctionClosure_Arg5_Bind5 : public Closure<R(Arg6, Arg7, Arg8, Arg9,
     Arg10)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
       Arg9, Arg10);
-public:
   FunctionClosure_Arg5_Bind5(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4, PreArg5 pa5):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -8170,11 +8299,11 @@ public:
     return function_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, arg6, arg7, arg8, arg9,
         arg10);
   }
-  virtual Closure<R (Arg6, Arg7, Arg8, Arg9, Arg10)>* Clone() {
+  virtual Closure<R(Arg6, Arg7, Arg8, Arg9, Arg10)>* Clone() {
     return new FunctionClosure_Arg5_Bind5(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -8187,8 +8316,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5>
-Closure<R (Arg6, Arg7, Arg8, Arg9, Arg10)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
+Closure<R(Arg6, Arg7, Arg8, Arg9, Arg10)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
     Arg10), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
   return new FunctionClosure_Arg5_Bind5<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, Arg8, Arg9, Arg10, PreArg1, PreArg2, PreArg3, PreArg4,
@@ -8199,8 +8328,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5>
-Closure<R (Arg6, Arg7, Arg8, Arg9, Arg10)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+Closure<R(Arg6, Arg7, Arg8, Arg9, Arg10)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
     Arg8, Arg9, Arg10), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
   return new FunctionClosure_Arg5_Bind5<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
@@ -8212,10 +8341,10 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5>
-ClosureFunc<R (Arg6, Arg7, Arg8, Arg9, Arg10)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
+ClosureFunc<R(Arg6, Arg7, Arg8, Arg9, Arg10)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
     Arg10), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
-  return ClosureFunc<R (Arg6, Arg7, Arg8, Arg9,
+  return ClosureFunc<R(Arg6, Arg7, Arg8, Arg9,
       Arg10)>(NewPermanentClosure(function, pa1, pa2, pa3, pa4, pa5));
 }
 
@@ -8229,7 +8358,7 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4, typename PreArg5>
-class FunctorClosure_Arg5_Bind5 : public Closure<R (Arg6, Arg7, Arg8, Arg9,
+class FunctorClosure_Arg5_Bind5 : public Closure<R(Arg6, Arg7, Arg8, Arg9,
     Arg10)> {
 public:
   explicit FunctorClosure_Arg5_Bind5(const F& functor, PreArg1 pa1,
@@ -8246,7 +8375,7 @@ public:
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, arg6, arg7, arg8, arg9,
         arg10);
   }
-  virtual Closure<R (Arg6, Arg7, Arg8, Arg9, Arg10)>* Clone() {
+  virtual Closure<R(Arg6, Arg7, Arg8, Arg9, Arg10)>* Clone() {
     return new FunctorClosure_Arg5_Bind5(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -8263,7 +8392,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5, typename F>
-Closure<R (Arg6, Arg7, Arg8, Arg9, Arg10)>*
+Closure<R(Arg6, Arg7, Arg8, Arg9, Arg10)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
   return new FunctorClosure_Arg5_Bind5<false, typename std::decay<F>::type, R,
@@ -8276,7 +8405,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5, typename F>
-Closure<R (Arg6, Arg7, Arg8, Arg9, Arg10)>*
+Closure<R(Arg6, Arg7, Arg8, Arg9, Arg10)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5) {
   return new FunctorClosure_Arg5_Bind5<true, typename std::decay<F>::type, R,
@@ -8289,10 +8418,10 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5, typename F>
-ClosureFunc<R (Arg6, Arg7, Arg8, Arg9, Arg10)>
+ClosureFunc<R(Arg6, Arg7, Arg8, Arg9, Arg10)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
-  return ClosureFunc<R (Arg6, Arg7, Arg8, Arg9, Arg10)>(NewPermanentClosure<R,
+  return ClosureFunc<R(Arg6, Arg7, Arg8, Arg9, Arg10)>(NewPermanentClosure<R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, Arg10, PreArg1,
       PreArg2, PreArg3, PreArg4, PreArg5>(std::forward<F>(functor), pa1, pa2,
       pa3, pa4, pa5));
@@ -8311,11 +8440,11 @@ template <
       typename Arg8, typename Arg9, typename Arg10, typename Arg11 ,
       typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
       typename PreArg5, typename PreArg6>
-class MethodClosure_Arg5_Bind6 : public Closure<R (Arg7, Arg8, Arg9, Arg10,
+class MethodClosure_Arg5_Bind6 : public Closure<R(Arg7, Arg8, Arg9, Arg10,
     Arg11)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7, Arg8, Arg9, Arg10, Arg11);
-public:
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+      Arg8, Arg9, Arg10, Arg11);
   MethodClosure_Arg5_Bind6(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -8326,11 +8455,11 @@ public:
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_, arg7,
         arg8, arg9, arg10, arg11);
   }
-  virtual Closure<R (Arg7, Arg8, Arg9, Arg10, Arg11)>* Clone() {
+  virtual Closure<R(Arg7, Arg8, Arg9, Arg10, Arg11)>* Clone() {
     return new MethodClosure_Arg5_Bind6(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -8346,9 +8475,9 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg7, typename Arg8, typename Arg9, typename Arg10,
     typename Arg11, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5, typename PreArg6>
-Closure<R (Arg7, Arg8, Arg9, Arg10, Arg11)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7, Arg8, Arg9, Arg10, Arg11), PreArg1 pa1, PreArg2 pa2,
+Closure<R(Arg7, Arg8, Arg9, Arg10, Arg11)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7, Arg8, Arg9, Arg10, Arg11), PreArg1 pa1, PreArg2 pa2,
     PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new MethodClosure_Arg5_Bind6<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, Arg10, Arg11, PreArg1, PreArg2,
@@ -8361,8 +8490,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg7, typename Arg8, typename Arg9, typename Arg10,
     typename Arg11, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5, typename PreArg6>
-Closure<R (Arg7, Arg8, Arg9, Arg10, Arg11)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg7, Arg8, Arg9, Arg10, Arg11)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, Arg10, Arg11), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new MethodClosure_Arg5_Bind6<true, R, Class, MethodClass, Arg1, Arg2,
@@ -8376,8 +8505,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg7, typename Arg8, typename Arg9, typename Arg10,
     typename Arg11, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5, typename PreArg6>
-ClosureFunc<R (Arg7, Arg8, Arg9, Arg10, Arg11)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg7, Arg8, Arg9, Arg10, Arg11)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7, Arg8, Arg9, Arg10, Arg11), PreArg1 pa1, PreArg2 pa2,
     PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return ClosureFunc<R (Arg7, Arg8, Arg9, Arg10,
@@ -8396,11 +8525,11 @@ template <
       typename Arg9, typename Arg10, typename Arg11, typename PreArg1,
       typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
       typename PreArg6>
-class FunctionClosure_Arg5_Bind6 : public Closure<R (Arg7, Arg8, Arg9, Arg10,
+class FunctionClosure_Arg5_Bind6 : public Closure<R(Arg7, Arg8, Arg9, Arg10,
     Arg11)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
       Arg9, Arg10, Arg11);
-public:
   FunctionClosure_Arg5_Bind6(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -8411,11 +8540,11 @@ public:
     return function_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_, arg7, arg8,
         arg9, arg10, arg11);
   }
-  virtual Closure<R (Arg7, Arg8, Arg9, Arg10, Arg11)>* Clone() {
+  virtual Closure<R(Arg7, Arg8, Arg9, Arg10, Arg11)>* Clone() {
     return new FunctionClosure_Arg5_Bind6(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -8430,8 +8559,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg9, typename Arg10, typename Arg11, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename PreArg6>
-Closure<R (Arg7, Arg8, Arg9, Arg10, Arg11)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
+Closure<R(Arg7, Arg8, Arg9, Arg10, Arg11)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
     Arg10, Arg11), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
   return new FunctionClosure_Arg5_Bind6<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
@@ -8444,8 +8573,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg9, typename Arg10, typename Arg11, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename PreArg6>
-Closure<R (Arg7, Arg8, Arg9, Arg10, Arg11)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+Closure<R(Arg7, Arg8, Arg9, Arg10, Arg11)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
     Arg8, Arg9, Arg10, Arg11), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new FunctionClosure_Arg5_Bind6<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
@@ -8458,11 +8587,11 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg9, typename Arg10, typename Arg11, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename PreArg6>
-ClosureFunc<R (Arg7, Arg8, Arg9, Arg10, Arg11)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
+ClosureFunc<R(Arg7, Arg8, Arg9, Arg10, Arg11)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
     Arg10, Arg11), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
-  return ClosureFunc<R (Arg7, Arg8, Arg9, Arg10,
+  return ClosureFunc<R(Arg7, Arg8, Arg9, Arg10,
       Arg11)>(NewPermanentClosure(function, pa1, pa2, pa3, pa4, pa5, pa6));
 }
 
@@ -8477,7 +8606,7 @@ template <
       typename Arg9, typename Arg10, typename Arg11, typename PreArg1,
       typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
       typename PreArg6>
-class FunctorClosure_Arg5_Bind6 : public Closure<R (Arg7, Arg8, Arg9, Arg10,
+class FunctorClosure_Arg5_Bind6 : public Closure<R(Arg7, Arg8, Arg9, Arg10,
     Arg11)> {
 public:
   explicit FunctorClosure_Arg5_Bind6(const F& functor, PreArg1 pa1,
@@ -8494,7 +8623,7 @@ public:
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_, arg7, arg8, arg9,
         arg10, arg11);
   }
-  virtual Closure<R (Arg7, Arg8, Arg9, Arg10, Arg11)>* Clone() {
+  virtual Closure<R(Arg7, Arg8, Arg9, Arg10, Arg11)>* Clone() {
     return new FunctorClosure_Arg5_Bind6(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -8513,7 +8642,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg9, typename Arg10, typename Arg11, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename PreArg6, typename F>
-Closure<R (Arg7, Arg8, Arg9, Arg10, Arg11)>*
+Closure<R(Arg7, Arg8, Arg9, Arg10, Arg11)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
   return new FunctorClosure_Arg5_Bind6<false, typename std::decay<F>::type, R,
@@ -8527,7 +8656,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg9, typename Arg10, typename Arg11, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename PreArg6, typename F>
-Closure<R (Arg7, Arg8, Arg9, Arg10, Arg11)>*
+Closure<R(Arg7, Arg8, Arg9, Arg10, Arg11)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new FunctorClosure_Arg5_Bind6<true, typename std::decay<F>::type, R,
@@ -8541,10 +8670,10 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg9, typename Arg10, typename Arg11, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename PreArg6, typename F>
-ClosureFunc<R (Arg7, Arg8, Arg9, Arg10, Arg11)>
+ClosureFunc<R(Arg7, Arg8, Arg9, Arg10, Arg11)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
-  return ClosureFunc<R (Arg7, Arg8, Arg9, Arg10, Arg11)>(NewPermanentClosure<R,
+  return ClosureFunc<R(Arg7, Arg8, Arg9, Arg10, Arg11)>(NewPermanentClosure<R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, Arg10, Arg11,
       PreArg1, PreArg2, PreArg3, PreArg4, PreArg5,
       PreArg6>(std::forward<F>(functor), pa1, pa2, pa3, pa4, pa5, pa6));
@@ -8560,10 +8689,10 @@ template <
   typename Class,
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4, typename Arg5, typename Arg6 >
-class MethodClosure_Arg6_Bind0 : public Closure<R (Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
-public:
+class MethodClosure_Arg6_Bind0 : public Closure<R(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
   MethodClosure_Arg6_Bind0(Class *object, MethodType method):
     object_(object), method_(method) {}
   virtual R Run(Arg1 arg1, Arg2 arg2, Arg3 arg3, Arg4 arg4, Arg5 arg5,
@@ -8572,20 +8701,20 @@ public:
         MethodClosure_Arg6_Bind0> self_deleter(this);
     return (object_->*method_)(arg1, arg2, arg3, arg4, arg5, arg6);
   }
-  virtual Closure<R (Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>* Clone() {
+  virtual Closure<R(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>* Clone() {
     return new MethodClosure_Arg6_Bind0(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
 };
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6>
-Closure<R (Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6)) {
+Closure<R(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6)) {
   return new MethodClosure_Arg6_Bind0<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6>(
     object, method);
@@ -8593,8 +8722,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6>
-Closure<R (Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6)) {
   return new MethodClosure_Arg6_Bind0<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6>(
@@ -8603,8 +8732,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
 
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6>
-ClosureFunc<R (Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6)) {
   return ClosureFunc<R (Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6)>(NewPermanentClosure(object, method));
@@ -8618,10 +8747,10 @@ template <
   bool Permanent,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6>
-class FunctionClosure_Arg6_Bind0 : public Closure<R (Arg1, Arg2, Arg3, Arg4,
+class FunctionClosure_Arg6_Bind0 : public Closure<R(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
-public:
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6);
   FunctionClosure_Arg6_Bind0(FunctionType function):
     function_(function) {}
   virtual R Run(Arg1 arg1, Arg2 arg2, Arg3 arg3, Arg4 arg4, Arg5 arg5,
@@ -8630,35 +8759,35 @@ public:
         FunctionClosure_Arg6_Bind0> self_deleter(this);
     return function_(arg1, arg2, arg3, arg4, arg5, arg6);
   }
-  virtual Closure<R (Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>* Clone() {
+  virtual Closure<R(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>* Clone() {
     return new FunctionClosure_Arg6_Bind0(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
 };
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6>
-Closure<R (Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)) {
+Closure<R(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)) {
   return new FunctionClosure_Arg6_Bind0<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6>(function);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6>
-Closure<R (Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)) {
+Closure<R(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)) {
   return new FunctionClosure_Arg6_Bind0<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6>(function);
 }
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6>
-ClosureFunc<R (Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)) {
-  return ClosureFunc<R (Arg1, Arg2, Arg3, Arg4, Arg5,
+ClosureFunc<R(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)) {
+  return ClosureFunc<R(Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6)>(NewPermanentClosure(function));
 }
 
@@ -8670,7 +8799,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6>
-class FunctorClosure_Arg6_Bind0 : public Closure<R (Arg1, Arg2, Arg3, Arg4,
+class FunctorClosure_Arg6_Bind0 : public Closure<R(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6)> {
 public:
   explicit FunctorClosure_Arg6_Bind0(const F& functor)
@@ -8683,7 +8812,7 @@ public:
         FunctorClosure_Arg6_Bind0> self_deleter(this);
     return functor_(arg1, arg2, arg3, arg4, arg5, arg6);
   }
-  virtual Closure<R (Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>* Clone() {
+  virtual Closure<R(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>* Clone() {
     return new FunctorClosure_Arg6_Bind0(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -8693,7 +8822,7 @@ private:
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename F>
-Closure<R (Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>*
+Closure<R(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>*
 NewClosure(F&& functor) {
   return new FunctorClosure_Arg6_Bind0<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6>(
@@ -8702,7 +8831,7 @@ NewClosure(F&& functor) {
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename F>
-Closure<R (Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>*
+Closure<R(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>*
 NewPermanentClosure(F&& functor) {
   return new FunctorClosure_Arg6_Bind0<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6>(
@@ -8711,9 +8840,9 @@ NewPermanentClosure(F&& functor) {
 
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename F>
-ClosureFunc<R (Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>
+ClosureFunc<R(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6)>
 BindClosure(F&& functor) {
-  return ClosureFunc<R (Arg1, Arg2, Arg3, Arg4, Arg5,
+  return ClosureFunc<R(Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6)>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6>(std::forward<F>(functor)));
 }
@@ -8729,11 +8858,10 @@ template <
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4, typename Arg5, typename Arg6, typename Arg7 ,
       typename PreArg1>
-class MethodClosure_Arg6_Bind1 : public Closure<R (Arg2, Arg3, Arg4, Arg5,
-    Arg6, Arg7)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7);
-public:
+class MethodClosure_Arg6_Bind1 : public Closure<R(Arg2, Arg3, Arg4, Arg5, Arg6,
+    Arg7)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7);
   MethodClosure_Arg6_Bind1(Class *object, MethodType method, PreArg1 pa1):
     object_(object), method_(method), pa_1_(pa1) {}
   virtual R Run(Arg2 arg2, Arg3 arg3, Arg4 arg4, Arg5 arg5, Arg6 arg6,
@@ -8742,11 +8870,11 @@ public:
         MethodClosure_Arg6_Bind1> self_deleter(this);
     return (object_->*method_)(pa_1_, arg2, arg3, arg4, arg5, arg6, arg7);
   }
-  virtual Closure<R (Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>* Clone() {
+  virtual Closure<R(Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>* Clone() {
     return new MethodClosure_Arg6_Bind1(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -8755,9 +8883,9 @@ private:
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename PreArg1>
-Closure<R (Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7), PreArg1 pa1) {
+Closure<R(Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7), PreArg1 pa1) {
   return new MethodClosure_Arg6_Bind1<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, PreArg1>(
     object, method, pa1);
@@ -8766,8 +8894,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename PreArg1>
-Closure<R (Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7), PreArg1 pa1) {
   return new MethodClosure_Arg6_Bind1<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, PreArg1>(
@@ -8777,8 +8905,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename PreArg1>
-ClosureFunc<R (Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7), PreArg1 pa1) {
   return ClosureFunc<R (Arg2, Arg3, Arg4, Arg5, Arg6,
       Arg7)>(NewPermanentClosure(object, method, pa1));
@@ -8792,10 +8920,10 @@ template <
   bool Permanent,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename Arg7, typename PreArg1>
-class FunctionClosure_Arg6_Bind1 : public Closure<R (Arg2, Arg3, Arg4, Arg5,
+class FunctionClosure_Arg6_Bind1 : public Closure<R(Arg2, Arg3, Arg4, Arg5,
     Arg6, Arg7)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7);
-public:
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7);
   FunctionClosure_Arg6_Bind1(FunctionType function, PreArg1 pa1):
     function_(function), pa_1_(pa1) {}
   virtual R Run(Arg2 arg2, Arg3 arg3, Arg4 arg4, Arg5 arg5, Arg6 arg6,
@@ -8804,11 +8932,11 @@ public:
         FunctionClosure_Arg6_Bind1> self_deleter(this);
     return function_(pa_1_, arg2, arg3, arg4, arg5, arg6, arg7);
   }
-  virtual Closure<R (Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>* Clone() {
+  virtual Closure<R(Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>* Clone() {
     return new FunctionClosure_Arg6_Bind1(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
 };
@@ -8816,8 +8944,8 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1>
-Closure<R (Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
+Closure<R(Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
     PreArg1 pa1) {
   return new FunctionClosure_Arg6_Bind1<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, PreArg1>(function, pa1);
@@ -8826,8 +8954,8 @@ NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1>
-Closure<R (Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
+Closure<R(Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
     PreArg1 pa1) {
   return new FunctionClosure_Arg6_Bind1<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, PreArg1>(function, pa1);
@@ -8836,10 +8964,10 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1>
-ClosureFunc<R (Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
+ClosureFunc<R(Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7),
     PreArg1 pa1) {
-  return ClosureFunc<R (Arg2, Arg3, Arg4, Arg5, Arg6,
+  return ClosureFunc<R(Arg2, Arg3, Arg4, Arg5, Arg6,
       Arg7)>(NewPermanentClosure(function, pa1));
 }
 
@@ -8851,7 +8979,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename Arg7, typename PreArg1>
-class FunctorClosure_Arg6_Bind1 : public Closure<R (Arg2, Arg3, Arg4, Arg5,
+class FunctorClosure_Arg6_Bind1 : public Closure<R(Arg2, Arg3, Arg4, Arg5,
     Arg6, Arg7)> {
 public:
   explicit FunctorClosure_Arg6_Bind1(const F& functor, PreArg1 pa1)
@@ -8864,7 +8992,7 @@ public:
         FunctorClosure_Arg6_Bind1> self_deleter(this);
     return functor_(pa_1_, arg2, arg3, arg4, arg5, arg6, arg7);
   }
-  virtual Closure<R (Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>* Clone() {
+  virtual Closure<R(Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>* Clone() {
     return new FunctorClosure_Arg6_Bind1(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -8876,7 +9004,7 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename F>
-Closure<R (Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>*
+Closure<R(Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>*
 NewClosure(F&& functor, PreArg1 pa1) {
   return new FunctorClosure_Arg6_Bind1<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, PreArg1>(
@@ -8886,7 +9014,7 @@ NewClosure(F&& functor, PreArg1 pa1) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename F>
-Closure<R (Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>*
+Closure<R(Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1) {
   return new FunctorClosure_Arg6_Bind1<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, PreArg1>(
@@ -8896,9 +9024,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7,
     typename PreArg1, typename F>
-ClosureFunc<R (Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>
+ClosureFunc<R(Arg2, Arg3, Arg4, Arg5, Arg6, Arg7)>
 BindClosure(F&& functor, PreArg1 pa1) {
-  return ClosureFunc<R (Arg2, Arg3, Arg4, Arg5, Arg6,
+  return ClosureFunc<R(Arg2, Arg3, Arg4, Arg5, Arg6,
       Arg7)>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
       PreArg1>(std::forward<F>(functor), pa1));
 }
@@ -8914,11 +9042,11 @@ template <
   typename MethodClass, typename Arg1, typename Arg2, typename Arg3,
       typename Arg4, typename Arg5, typename Arg6, typename Arg7,
       typename Arg8 , typename PreArg1, typename PreArg2>
-class MethodClosure_Arg6_Bind2 : public Closure<R (Arg3, Arg4, Arg5, Arg6,
-    Arg7, Arg8)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7, Arg8);
-public:
+class MethodClosure_Arg6_Bind2 : public Closure<R(Arg3, Arg4, Arg5, Arg6, Arg7,
+    Arg8)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+      Arg8);
   MethodClosure_Arg6_Bind2(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2) {}
@@ -8929,11 +9057,11 @@ public:
     return (object_->*method_)(pa_1_, pa_2_, arg3, arg4, arg5, arg6, arg7,
         arg8);
   }
-  virtual Closure<R (Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>* Clone() {
+  virtual Closure<R(Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>* Clone() {
     return new MethodClosure_Arg6_Bind2(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -8943,9 +9071,9 @@ private:
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename PreArg1, typename PreArg2>
-Closure<R (Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7, Arg8), PreArg1 pa1, PreArg2 pa2) {
+Closure<R(Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7, Arg8), PreArg1 pa1, PreArg2 pa2) {
   return new MethodClosure_Arg6_Bind2<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, PreArg1, PreArg2>(
     object, method, pa1, pa2);
@@ -8954,8 +9082,8 @@ NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename PreArg1, typename PreArg2>
-Closure<R (Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7, Arg8), PreArg1 pa1, PreArg2 pa2) {
   return new MethodClosure_Arg6_Bind2<true, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, PreArg1, PreArg2>(
@@ -8965,8 +9093,8 @@ NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
 template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename PreArg1, typename PreArg2>
-ClosureFunc<R (Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7, Arg8), PreArg1 pa1, PreArg2 pa2) {
   return ClosureFunc<R (Arg3, Arg4, Arg5, Arg6, Arg7,
       Arg8)>(NewPermanentClosure(object, method, pa1, pa2));
@@ -8981,10 +9109,10 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename PreArg1, typename PreArg2>
-class FunctionClosure_Arg6_Bind2 : public Closure<R (Arg3, Arg4, Arg5, Arg6,
+class FunctionClosure_Arg6_Bind2 : public Closure<R(Arg3, Arg4, Arg5, Arg6,
     Arg7, Arg8)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8);
-public:
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8);
   FunctionClosure_Arg6_Bind2(FunctionType function, PreArg1 pa1, PreArg2 pa2):
     function_(function), pa_1_(pa1), pa_2_(pa2) {}
   virtual R Run(Arg3 arg3, Arg4 arg4, Arg5 arg5, Arg6 arg6, Arg7 arg7,
@@ -8993,11 +9121,11 @@ public:
         FunctionClosure_Arg6_Bind2> self_deleter(this);
     return function_(pa_1_, pa_2_, arg3, arg4, arg5, arg6, arg7, arg8);
   }
-  virtual Closure<R (Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>* Clone() {
+  virtual Closure<R(Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>* Clone() {
     return new FunctionClosure_Arg6_Bind2(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -9006,8 +9134,8 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2>
-Closure<R (Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
+Closure<R(Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
     PreArg1 pa1, PreArg2 pa2) {
   return new FunctionClosure_Arg6_Bind2<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, Arg8, PreArg1, PreArg2>(function, pa1, pa2);
@@ -9016,8 +9144,8 @@ NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2>
-Closure<R (Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+Closure<R(Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
     Arg8), PreArg1 pa1, PreArg2 pa2) {
   return new FunctionClosure_Arg6_Bind2<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, Arg8, PreArg1, PreArg2>(function, pa1, pa2);
@@ -9026,10 +9154,10 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2>
-ClosureFunc<R (Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
+ClosureFunc<R(Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8),
     PreArg1 pa1, PreArg2 pa2) {
-  return ClosureFunc<R (Arg3, Arg4, Arg5, Arg6, Arg7,
+  return ClosureFunc<R(Arg3, Arg4, Arg5, Arg6, Arg7,
       Arg8)>(NewPermanentClosure(function, pa1, pa2));
 }
 
@@ -9042,7 +9170,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename PreArg1, typename PreArg2>
-class FunctorClosure_Arg6_Bind2 : public Closure<R (Arg3, Arg4, Arg5, Arg6,
+class FunctorClosure_Arg6_Bind2 : public Closure<R(Arg3, Arg4, Arg5, Arg6,
     Arg7, Arg8)> {
 public:
   explicit FunctorClosure_Arg6_Bind2(const F& functor, PreArg1 pa1, PreArg2 pa2)
@@ -9055,7 +9183,7 @@ public:
         FunctorClosure_Arg6_Bind2> self_deleter(this);
     return functor_(pa_1_, pa_2_, arg3, arg4, arg5, arg6, arg7, arg8);
   }
-  virtual Closure<R (Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>* Clone() {
+  virtual Closure<R(Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>* Clone() {
     return new FunctorClosure_Arg6_Bind2(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -9068,7 +9196,7 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename F>
-Closure<R (Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>*
+Closure<R(Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
   return new FunctorClosure_Arg6_Bind2<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, PreArg1, PreArg2>(
@@ -9078,7 +9206,7 @@ NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename F>
-Closure<R (Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>*
+Closure<R(Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
   return new FunctorClosure_Arg6_Bind2<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, PreArg1, PreArg2>(
@@ -9088,9 +9216,9 @@ NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename PreArg1, typename PreArg2, typename F>
-ClosureFunc<R (Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>
+ClosureFunc<R(Arg3, Arg4, Arg5, Arg6, Arg7, Arg8)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2) {
-  return ClosureFunc<R (Arg3, Arg4, Arg5, Arg6, Arg7,
+  return ClosureFunc<R(Arg3, Arg4, Arg5, Arg6, Arg7,
       Arg8)>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
       Arg8, PreArg1, PreArg2>(std::forward<F>(functor), pa1, pa2));
 }
@@ -9107,11 +9235,11 @@ template <
       typename Arg4, typename Arg5, typename Arg6, typename Arg7,
       typename Arg8, typename Arg9 , typename PreArg1, typename PreArg2,
       typename PreArg3>
-class MethodClosure_Arg6_Bind3 : public Closure<R (Arg4, Arg5, Arg6, Arg7,
-    Arg8, Arg9)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7, Arg8, Arg9);
-public:
+class MethodClosure_Arg6_Bind3 : public Closure<R(Arg4, Arg5, Arg6, Arg7, Arg8,
+    Arg9)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+      Arg8, Arg9);
   MethodClosure_Arg6_Bind3(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -9122,11 +9250,11 @@ public:
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, arg4, arg5, arg6, arg7,
         arg8, arg9);
   }
-  virtual Closure<R (Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>* Clone() {
+  virtual Closure<R(Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>* Clone() {
     return new MethodClosure_Arg6_Bind3(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -9138,9 +9266,9 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename Arg9, typename PreArg1,
     typename PreArg2, typename PreArg3>
-Closure<R (Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7, Arg8, Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
+Closure<R(Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7, Arg8, Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new MethodClosure_Arg6_Bind3<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, PreArg1, PreArg2, PreArg3>(
     object, method, pa1, pa2, pa3);
@@ -9150,8 +9278,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename Arg9, typename PreArg1,
     typename PreArg2, typename PreArg3>
-Closure<R (Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7, Arg8, Arg9), PreArg1 pa1, PreArg2 pa2,
     PreArg3 pa3) {
   return new MethodClosure_Arg6_Bind3<true, R, Class, MethodClass, Arg1, Arg2,
@@ -9163,8 +9291,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename Arg9, typename PreArg1,
     typename PreArg2, typename PreArg3>
-ClosureFunc<R (Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7, Arg8, Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return ClosureFunc<R (Arg4, Arg5, Arg6, Arg7, Arg8,
       Arg9)>(NewPermanentClosure(object, method, pa1, pa2, pa3));
@@ -9179,11 +9307,11 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3>
-class FunctionClosure_Arg6_Bind3 : public Closure<R (Arg4, Arg5, Arg6, Arg7,
+class FunctionClosure_Arg6_Bind3 : public Closure<R(Arg4, Arg5, Arg6, Arg7,
     Arg8, Arg9)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
       Arg9);
-public:
   FunctionClosure_Arg6_Bind3(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -9193,11 +9321,11 @@ public:
         FunctionClosure_Arg6_Bind3> self_deleter(this);
     return function_(pa_1_, pa_2_, pa_3_, arg4, arg5, arg6, arg7, arg8, arg9);
   }
-  virtual Closure<R (Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>* Clone() {
+  virtual Closure<R(Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>* Clone() {
     return new FunctionClosure_Arg6_Bind3(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -9207,8 +9335,8 @@ private:
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3>
-Closure<R (Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9),
+Closure<R(Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9),
     PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new FunctionClosure_Arg6_Bind3<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, Arg8, Arg9, PreArg1, PreArg2, PreArg3>(function, pa1, pa2,
@@ -9218,8 +9346,8 @@ NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9),
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3>
-Closure<R (Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+Closure<R(Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
     Arg8, Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new FunctionClosure_Arg6_Bind3<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, Arg8, Arg9, PreArg1, PreArg2, PreArg3>(function, pa1, pa2,
@@ -9229,10 +9357,10 @@ NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
 template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3>
-ClosureFunc<R (Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
-    Arg9), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
-  return ClosureFunc<R (Arg4, Arg5, Arg6, Arg7, Arg8,
+ClosureFunc<R(Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9),
+    PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
+  return ClosureFunc<R(Arg4, Arg5, Arg6, Arg7, Arg8,
       Arg9)>(NewPermanentClosure(function, pa1, pa2, pa3));
 }
 
@@ -9245,7 +9373,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3>
-class FunctorClosure_Arg6_Bind3 : public Closure<R (Arg4, Arg5, Arg6, Arg7,
+class FunctorClosure_Arg6_Bind3 : public Closure<R(Arg4, Arg5, Arg6, Arg7,
     Arg8, Arg9)> {
 public:
   explicit FunctorClosure_Arg6_Bind3(const F& functor, PreArg1 pa1,
@@ -9260,7 +9388,7 @@ public:
         FunctorClosure_Arg6_Bind3> self_deleter(this);
     return functor_(pa_1_, pa_2_, pa_3_, arg4, arg5, arg6, arg7, arg8, arg9);
   }
-  virtual Closure<R (Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>* Clone() {
+  virtual Closure<R(Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>* Clone() {
     return new FunctorClosure_Arg6_Bind3(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -9275,7 +9403,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename F>
-Closure<R (Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>*
+Closure<R(Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new FunctorClosure_Arg6_Bind3<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, PreArg1, PreArg2,
@@ -9287,7 +9415,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename F>
-Closure<R (Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>*
+Closure<R(Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
   return new FunctorClosure_Arg6_Bind3<true, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, PreArg1, PreArg2,
@@ -9299,9 +9427,9 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
     typename F>
-ClosureFunc<R (Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>
+ClosureFunc<R(Arg4, Arg5, Arg6, Arg7, Arg8, Arg9)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3) {
-  return ClosureFunc<R (Arg4, Arg5, Arg6, Arg7, Arg8,
+  return ClosureFunc<R(Arg4, Arg5, Arg6, Arg7, Arg8,
       Arg9)>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
       Arg8, Arg9, PreArg1, PreArg2, PreArg3>(std::forward<F>(functor), pa1,
       pa2, pa3));
@@ -9319,11 +9447,11 @@ template <
       typename Arg4, typename Arg5, typename Arg6, typename Arg7,
       typename Arg8, typename Arg9, typename Arg10 , typename PreArg1,
       typename PreArg2, typename PreArg3, typename PreArg4>
-class MethodClosure_Arg6_Bind4 : public Closure<R (Arg5, Arg6, Arg7, Arg8,
-    Arg9, Arg10)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7, Arg8, Arg9, Arg10);
-public:
+class MethodClosure_Arg6_Bind4 : public Closure<R(Arg5, Arg6, Arg7, Arg8, Arg9,
+    Arg10)> {
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+      Arg8, Arg9, Arg10);
   MethodClosure_Arg6_Bind4(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -9335,11 +9463,11 @@ public:
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_, arg5, arg6, arg7,
         arg8, arg9, arg10);
   }
-  virtual Closure<R (Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>* Clone() {
+  virtual Closure<R(Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>* Clone() {
     return new MethodClosure_Arg6_Bind4(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -9352,10 +9480,10 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename Arg9, typename Arg10,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
-Closure<R (Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7, Arg8, Arg9, Arg10), PreArg1 pa1, PreArg2 pa2,
-    PreArg3 pa3, PreArg4 pa4) {
+Closure<R(Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7, Arg8, Arg9, Arg10), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
+    PreArg4 pa4) {
   return new MethodClosure_Arg6_Bind4<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, Arg10, PreArg1, PreArg2,
       PreArg3, PreArg4>(
@@ -9366,8 +9494,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename Arg9, typename Arg10,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
-Closure<R (Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, Arg10), PreArg1 pa1, PreArg2 pa2,
     PreArg3 pa3, PreArg4 pa4) {
   return new MethodClosure_Arg6_Bind4<true, R, Class, MethodClass, Arg1, Arg2,
@@ -9380,8 +9508,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg2, typename Arg3, typename Arg4, typename Arg5, typename Arg6,
     typename Arg7, typename Arg8, typename Arg9, typename Arg10,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
-ClosureFunc<R (Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7, Arg8, Arg9, Arg10), PreArg1 pa1, PreArg2 pa2,
     PreArg3 pa3, PreArg4 pa4) {
   return ClosureFunc<R (Arg5, Arg6, Arg7, Arg8, Arg9,
@@ -9398,11 +9526,11 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4>
-class FunctionClosure_Arg6_Bind4 : public Closure<R (Arg5, Arg6, Arg7, Arg8,
+class FunctionClosure_Arg6_Bind4 : public Closure<R(Arg5, Arg6, Arg7, Arg8,
     Arg9, Arg10)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
       Arg9, Arg10);
-public:
   FunctionClosure_Arg6_Bind4(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4) {}
@@ -9413,11 +9541,11 @@ public:
     return function_(pa_1_, pa_2_, pa_3_, pa_4_, arg5, arg6, arg7, arg8, arg9,
         arg10);
   }
-  virtual Closure<R (Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>* Clone() {
+  virtual Closure<R(Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>* Clone() {
     return new FunctionClosure_Arg6_Bind4(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -9429,8 +9557,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4>
-Closure<R (Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
+Closure<R(Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
     Arg10), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new FunctionClosure_Arg6_Bind4<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, Arg8, Arg9, Arg10, PreArg1, PreArg2, PreArg3,
@@ -9441,8 +9569,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4>
-Closure<R (Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+Closure<R(Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
     Arg8, Arg9, Arg10), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new FunctionClosure_Arg6_Bind4<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
       Arg6, Arg7, Arg8, Arg9, Arg10, PreArg1, PreArg2, PreArg3,
@@ -9453,10 +9581,10 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4>
-ClosureFunc<R (Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
+ClosureFunc<R(Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
     Arg10), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
-  return ClosureFunc<R (Arg5, Arg6, Arg7, Arg8, Arg9,
+  return ClosureFunc<R(Arg5, Arg6, Arg7, Arg8, Arg9,
       Arg10)>(NewPermanentClosure(function, pa1, pa2, pa3, pa4));
 }
 
@@ -9470,7 +9598,7 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4>
-class FunctorClosure_Arg6_Bind4 : public Closure<R (Arg5, Arg6, Arg7, Arg8,
+class FunctorClosure_Arg6_Bind4 : public Closure<R(Arg5, Arg6, Arg7, Arg8,
     Arg9, Arg10)> {
 public:
   explicit FunctorClosure_Arg6_Bind4(const F& functor, PreArg1 pa1,
@@ -9487,7 +9615,7 @@ public:
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_, arg5, arg6, arg7, arg8, arg9,
         arg10);
   }
-  virtual Closure<R (Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>* Clone() {
+  virtual Closure<R(Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>* Clone() {
     return new FunctorClosure_Arg6_Bind4(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -9503,7 +9631,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename F>
-Closure<R (Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>*
+Closure<R(Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
   return new FunctorClosure_Arg6_Bind4<false, typename std::decay<F>::type, R,
       Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, Arg10, PreArg1,
@@ -9515,7 +9643,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename F>
-Closure<R (Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>*
+Closure<R(Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4) {
   return new FunctorClosure_Arg6_Bind4<true, typename std::decay<F>::type, R,
@@ -9528,9 +9656,9 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename F>
-ClosureFunc<R (Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>
+ClosureFunc<R(Arg5, Arg6, Arg7, Arg8, Arg9, Arg10)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4) {
-  return ClosureFunc<R (Arg5, Arg6, Arg7, Arg8, Arg9,
+  return ClosureFunc<R(Arg5, Arg6, Arg7, Arg8, Arg9,
       Arg10)>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
       Arg8, Arg9, Arg10, PreArg1, PreArg2, PreArg3,
       PreArg4>(std::forward<F>(functor), pa1, pa2, pa3, pa4));
@@ -9549,11 +9677,11 @@ template <
       typename Arg8, typename Arg9, typename Arg10, typename Arg11 ,
       typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
       typename PreArg5>
-class MethodClosure_Arg6_Bind5 : public Closure<R (Arg6, Arg7, Arg8, Arg9,
+class MethodClosure_Arg6_Bind5 : public Closure<R(Arg6, Arg7, Arg8, Arg9,
     Arg10, Arg11)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7, Arg8, Arg9, Arg10, Arg11);
-public:
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+      Arg8, Arg9, Arg10, Arg11);
   MethodClosure_Arg6_Bind5(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -9565,11 +9693,11 @@ public:
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, arg6, arg7,
         arg8, arg9, arg10, arg11);
   }
-  virtual Closure<R (Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>* Clone() {
+  virtual Closure<R(Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>* Clone() {
     return new MethodClosure_Arg6_Bind5(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -9584,9 +9712,9 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg7, typename Arg8, typename Arg9, typename Arg10,
     typename Arg11, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5>
-Closure<R (Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7, Arg8, Arg9, Arg10, Arg11), PreArg1 pa1, PreArg2 pa2,
+Closure<R(Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7, Arg8, Arg9, Arg10, Arg11), PreArg1 pa1, PreArg2 pa2,
     PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
   return new MethodClosure_Arg6_Bind5<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, Arg10, Arg11, PreArg1, PreArg2,
@@ -9599,8 +9727,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg7, typename Arg8, typename Arg9, typename Arg10,
     typename Arg11, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5>
-Closure<R (Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, Arg10, Arg11), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
   return new MethodClosure_Arg6_Bind5<true, R, Class, MethodClass, Arg1, Arg2,
@@ -9614,8 +9742,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg7, typename Arg8, typename Arg9, typename Arg10,
     typename Arg11, typename PreArg1, typename PreArg2, typename PreArg3,
     typename PreArg4, typename PreArg5>
-ClosureFunc<R (Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7, Arg8, Arg9, Arg10, Arg11), PreArg1 pa1, PreArg2 pa2,
     PreArg3 pa3, PreArg4 pa4, PreArg5 pa5) {
   return ClosureFunc<R (Arg6, Arg7, Arg8, Arg9, Arg10,
@@ -9632,11 +9760,11 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename Arg9, typename Arg10, typename Arg11, typename PreArg1,
       typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5>
-class FunctionClosure_Arg6_Bind5 : public Closure<R (Arg6, Arg7, Arg8, Arg9,
+class FunctionClosure_Arg6_Bind5 : public Closure<R(Arg6, Arg7, Arg8, Arg9,
     Arg10, Arg11)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
       Arg9, Arg10, Arg11);
-public:
   FunctionClosure_Arg6_Bind5(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4, PreArg5 pa5):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -9648,11 +9776,11 @@ public:
     return function_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, arg6, arg7, arg8, arg9,
         arg10, arg11);
   }
-  virtual Closure<R (Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>* Clone() {
+  virtual Closure<R(Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>* Clone() {
     return new FunctionClosure_Arg6_Bind5(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -9665,8 +9793,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename Arg10, typename Arg11, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5>
-Closure<R (Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
+Closure<R(Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
     Arg10, Arg11), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
   return new FunctionClosure_Arg6_Bind5<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
@@ -9678,8 +9806,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename Arg10, typename Arg11, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5>
-Closure<R (Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+Closure<R(Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
     Arg8, Arg9, Arg10, Arg11), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5) {
   return new FunctionClosure_Arg6_Bind5<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
@@ -9691,11 +9819,11 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg4, typename Arg5, typename Arg6, typename Arg7, typename Arg8,
     typename Arg9, typename Arg10, typename Arg11, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5>
-ClosureFunc<R (Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
+ClosureFunc<R(Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
     Arg10, Arg11), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
-  return ClosureFunc<R (Arg6, Arg7, Arg8, Arg9, Arg10,
+  return ClosureFunc<R(Arg6, Arg7, Arg8, Arg9, Arg10,
       Arg11)>(NewPermanentClosure(function, pa1, pa2, pa3, pa4, pa5));
 }
 
@@ -9709,7 +9837,7 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename Arg9, typename Arg10, typename Arg11, typename PreArg1,
       typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5>
-class FunctorClosure_Arg6_Bind5 : public Closure<R (Arg6, Arg7, Arg8, Arg9,
+class FunctorClosure_Arg6_Bind5 : public Closure<R(Arg6, Arg7, Arg8, Arg9,
     Arg10, Arg11)> {
 public:
   explicit FunctorClosure_Arg6_Bind5(const F& functor, PreArg1 pa1,
@@ -9727,7 +9855,7 @@ public:
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, arg6, arg7, arg8, arg9,
         arg10, arg11);
   }
-  virtual Closure<R (Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>* Clone() {
+  virtual Closure<R(Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>* Clone() {
     return new FunctorClosure_Arg6_Bind5(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -9745,7 +9873,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg9, typename Arg10, typename Arg11, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename F>
-Closure<R (Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>*
+Closure<R(Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
   return new FunctorClosure_Arg6_Bind5<false, typename std::decay<F>::type, R,
@@ -9759,7 +9887,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg9, typename Arg10, typename Arg11, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename F>
-Closure<R (Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>*
+Closure<R(Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5) {
   return new FunctorClosure_Arg6_Bind5<true, typename std::decay<F>::type, R,
@@ -9773,10 +9901,10 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg9, typename Arg10, typename Arg11, typename PreArg1,
     typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
     typename F>
-ClosureFunc<R (Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>
+ClosureFunc<R(Arg6, Arg7, Arg8, Arg9, Arg10, Arg11)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5) {
-  return ClosureFunc<R (Arg6, Arg7, Arg8, Arg9, Arg10,
+  return ClosureFunc<R(Arg6, Arg7, Arg8, Arg9, Arg10,
       Arg11)>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
       Arg8, Arg9, Arg10, Arg11, PreArg1, PreArg2, PreArg3, PreArg4,
       PreArg5>(std::forward<F>(functor), pa1, pa2, pa3, pa4, pa5));
@@ -9795,11 +9923,11 @@ template <
       typename Arg8, typename Arg9, typename Arg10, typename Arg11,
       typename Arg12 , typename PreArg1, typename PreArg2, typename PreArg3,
       typename PreArg4, typename PreArg5, typename PreArg6>
-class MethodClosure_Arg6_Bind6 : public Closure<R (Arg7, Arg8, Arg9, Arg10,
+class MethodClosure_Arg6_Bind6 : public Closure<R(Arg7, Arg8, Arg9, Arg10,
     Arg11, Arg12)> {
-  typedef R (MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6,
-      Arg7, Arg8, Arg9, Arg10, Arg11, Arg12);
-public:
+ public:
+  typedef R(MethodClass::*MethodType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+      Arg8, Arg9, Arg10, Arg11, Arg12);
   MethodClosure_Arg6_Bind6(Class *object, MethodType method, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6):
     object_(object), method_(method), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3),
@@ -9811,11 +9939,11 @@ public:
     return (object_->*method_)(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_, arg7,
         arg8, arg9, arg10, arg11, arg12);
   }
-  virtual Closure<R (Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>* Clone() {
+  virtual Closure<R(Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>* Clone() {
     return new MethodClosure_Arg6_Bind6(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   Class* object_;
   MethodType method_;
   PreArg1 pa_1_;
@@ -9831,10 +9959,10 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg7, typename Arg8, typename Arg9, typename Arg10,
     typename Arg11, typename Arg12, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5, typename PreArg6>
-Closure<R (Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>*
-NewClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
-    Arg5, Arg6, Arg7, Arg8, Arg9, Arg10, Arg11, Arg12), PreArg1 pa1,
-    PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
+Closure<R(Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>*
+NewClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4, Arg5,
+    Arg6, Arg7, Arg8, Arg9, Arg10, Arg11, Arg12), PreArg1 pa1, PreArg2 pa2,
+    PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new MethodClosure_Arg6_Bind6<false, R, Class, MethodClass, Arg1, Arg2,
       Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, Arg10, Arg11, Arg12, PreArg1,
       PreArg2, PreArg3, PreArg4, PreArg5, PreArg6>(
@@ -9846,8 +9974,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg7, typename Arg8, typename Arg9, typename Arg10,
     typename Arg11, typename Arg12, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5, typename PreArg6>
-Closure<R (Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>*
-NewPermanentClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3,
+Closure<R(Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>*
+NewPermanentClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3,
     Arg4, Arg5, Arg6, Arg7, Arg8, Arg9, Arg10, Arg11, Arg12), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new MethodClosure_Arg6_Bind6<true, R, Class, MethodClass, Arg1, Arg2,
@@ -9861,8 +9989,8 @@ template <typename R, typename Class, typename MethodClass, typename Arg1,
     typename Arg7, typename Arg8, typename Arg9, typename Arg10,
     typename Arg11, typename Arg12, typename PreArg1, typename PreArg2,
     typename PreArg3, typename PreArg4, typename PreArg5, typename PreArg6>
-ClosureFunc<R (Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>
-BindClosure(Class *object, R (MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
+ClosureFunc<R(Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>
+BindClosure(Class *object, R(MethodClass::*method)(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6, Arg7, Arg8, Arg9, Arg10, Arg11, Arg12), PreArg1 pa1,
     PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return ClosureFunc<R (Arg7, Arg8, Arg9, Arg10, Arg11,
@@ -9881,11 +10009,11 @@ template <
       typename Arg9, typename Arg10, typename Arg11, typename Arg12,
       typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
       typename PreArg5, typename PreArg6>
-class FunctionClosure_Arg6_Bind6 : public Closure<R (Arg7, Arg8, Arg9, Arg10,
+class FunctionClosure_Arg6_Bind6 : public Closure<R(Arg7, Arg8, Arg9, Arg10,
     Arg11, Arg12)> {
-  typedef R (*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
+ public:
+  typedef R(*FunctionType)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8,
       Arg9, Arg10, Arg11, Arg12);
-public:
   FunctionClosure_Arg6_Bind6(FunctionType function, PreArg1 pa1, PreArg2 pa2,
       PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6):
     function_(function), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -9897,11 +10025,11 @@ public:
     return function_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_, arg7, arg8,
         arg9, arg10, arg11, arg12);
   }
-  virtual Closure<R (Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>* Clone() {
+  virtual Closure<R(Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>* Clone() {
     return new FunctionClosure_Arg6_Bind6(*this);
   }
   virtual bool IsPermanent() const { return Permanent; }
-private:
+ private:
   FunctionType function_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -9916,8 +10044,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg9, typename Arg10, typename Arg11, typename Arg12,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6>
-Closure<R (Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>*
-NewClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
+Closure<R(Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>*
+NewClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
     Arg10, Arg11, Arg12), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
   return new FunctionClosure_Arg6_Bind6<false, R, Arg1, Arg2, Arg3, Arg4, Arg5,
@@ -9930,8 +10058,8 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg9, typename Arg10, typename Arg11, typename Arg12,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6>
-Closure<R (Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>*
-NewPermanentClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
+Closure<R(Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>*
+NewPermanentClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
     Arg8, Arg9, Arg10, Arg11, Arg12), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new FunctionClosure_Arg6_Bind6<true, R, Arg1, Arg2, Arg3, Arg4, Arg5,
@@ -9944,11 +10072,11 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg9, typename Arg10, typename Arg11, typename Arg12,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6>
-ClosureFunc<R (Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>
-BindClosure(R (*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
+ClosureFunc<R(Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>
+BindClosure(R(*function)(Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, Arg9,
     Arg10, Arg11, Arg12), PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
-  return ClosureFunc<R (Arg7, Arg8, Arg9, Arg10, Arg11,
+  return ClosureFunc<R(Arg7, Arg8, Arg9, Arg10, Arg11,
       Arg12)>(NewPermanentClosure(function, pa1, pa2, pa3, pa4, pa5, pa6));
 }
 
@@ -9963,7 +10091,7 @@ template <
       typename Arg9, typename Arg10, typename Arg11, typename Arg12,
       typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
       typename PreArg5, typename PreArg6>
-class FunctorClosure_Arg6_Bind6 : public Closure<R (Arg7, Arg8, Arg9, Arg10,
+class FunctorClosure_Arg6_Bind6 : public Closure<R(Arg7, Arg8, Arg9, Arg10,
     Arg11, Arg12)> {
 public:
   explicit FunctorClosure_Arg6_Bind6(const F& functor, PreArg1 pa1,
@@ -9981,7 +10109,7 @@ public:
     return functor_(pa_1_, pa_2_, pa_3_, pa_4_, pa_5_, pa_6_, arg7, arg8, arg9,
         arg10, arg11, arg12);
   }
-  virtual Closure<R (Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>* Clone() {
+  virtual Closure<R(Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>* Clone() {
     return new FunctorClosure_Arg6_Bind6(*this);
   }
   bool IsPermanent() const { return Permanent; }
@@ -10000,7 +10128,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg9, typename Arg10, typename Arg11, typename Arg12,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6, typename F>
-Closure<R (Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>*
+Closure<R(Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>*
 NewClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
   return new FunctorClosure_Arg6_Bind6<false, typename std::decay<F>::type, R,
@@ -10014,7 +10142,7 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg9, typename Arg10, typename Arg11, typename Arg12,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6, typename F>
-Closure<R (Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>*
+Closure<R(Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>*
 NewPermanentClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3,
     PreArg4 pa4, PreArg5 pa5, PreArg6 pa6) {
   return new FunctorClosure_Arg6_Bind6<true, typename std::decay<F>::type, R,
@@ -10028,10 +10156,10 @@ template <typename R, typename Arg1, typename Arg2, typename Arg3,
     typename Arg9, typename Arg10, typename Arg11, typename Arg12,
     typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
     typename PreArg5, typename PreArg6, typename F>
-ClosureFunc<R (Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>
+ClosureFunc<R(Arg7, Arg8, Arg9, Arg10, Arg11, Arg12)>
 BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
     PreArg5 pa5, PreArg6 pa6) {
-  return ClosureFunc<R (Arg7, Arg8, Arg9, Arg10, Arg11,
+  return ClosureFunc<R(Arg7, Arg8, Arg9, Arg10, Arg11,
       Arg12)>(NewPermanentClosure<R, Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7,
       Arg8, Arg9, Arg10, Arg11, Arg12, PreArg1, PreArg2, PreArg3, PreArg4,
       PreArg5, PreArg6>(std::forward<F>(functor), pa1, pa2, pa3, pa4, pa5,
@@ -10039,7 +10167,7 @@ BindClosure(F&& functor, PreArg1 pa1, PreArg2 pa2, PreArg3 pa3, PreArg4 pa4,
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// Functor closure helper
+// Helper function for 0-Args-Functor
 /////////////////////////////////////////////////////////////////////////////
 
 template <typename F>
@@ -10061,6 +10189,6 @@ auto BindClosure(F&& functor) -> ClosureFunc<decltype(functor())()> {
       ClosureFunc<decltype(functor())()>(NewPermanentClosure(std::forward<F>(functor)));
 }
 
-} // namespace ccb
+}  // namespace ccb
 
-#endif // _CCB_CLOSURE_H
+#endif  // CCBASE_CLOSURE_H_

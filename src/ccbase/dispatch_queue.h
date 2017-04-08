@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, Bin Wei <bin@vip.qq.com>
+/* Copyright (c) 2012-2017, Bin Wei <bin@vip.qq.com>
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
  * copyright notice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
- *     * The name of of its contributors may not be used to endorse or 
+ *     * The names of its contributors may not be used to endorse or 
  * promote products derived from this software without specific prior 
  * written permission.
  * 
@@ -27,45 +27,43 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _CCB_DISPATCH_QUEUE_H
-#define _CCB_DISPATCH_QUEUE_H
+#ifndef CCBASE_DISPATCH_QUEUE_H_
+#define CCBASE_DISPATCH_QUEUE_H_
 
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <vector>
+#include <utility>
 #include <mutex>
 #include "ccbase/fast_queue.h"
 
 namespace ccb {
 
 template <typename T>
-class DispatchQueue
-{
-public:
-  class OutQueue
-  {
-  public:
+class DispatchQueue {
+ public:
+  class OutQueue {
+   public:
     virtual ~OutQueue() {}
     virtual bool Push(const T& val) = 0;
     virtual bool Push(T&& val) = 0;
     virtual bool Push(size_t idx, const T& val) = 0;
     virtual bool Push(size_t idx, T&& val) = 0;
   };
-  class InQueue
-  {
-  public:
+  class InQueue {
+   public:
     virtual ~InQueue() {}
     virtual bool Pop(T* ptr) = 0;
     virtual bool PopWait(T* ptr, int timeout) = 0;
   };
 
-  DispatchQueue(size_t qlen);
+  explicit DispatchQueue(size_t qlen);
   virtual ~DispatchQueue();
   OutQueue* RegisterProducer();
   InQueue* RegisterConsumer();
 
-private:
+ private:
   NOT_COPYABLE_AND_MOVABLE(DispatchQueue);
 
   size_t qlen_;
@@ -86,27 +84,24 @@ private:
 ///////////////////////////////////////////////////////////////////
 
 template <typename T>
-class DispatchQueue<T>::_Producer : public DispatchQueue<T>::OutQueue
-{
-public:
+class DispatchQueue<T>::_Producer : public DispatchQueue<T>::OutQueue {
+ public:
   _Producer(DispatchQueue<T>* dq)
-    : dispatch_queue_(dq), cur_index_(-1U)
-  {
+      : dispatch_queue_(dq), cur_index_(-1U) {
     memset(queue_vec, 0, sizeof(queue_vec));
   }
-  virtual bool Push(const T& val) override;
-  virtual bool Push(T&& val) override;
-  virtual bool Push(size_t idx, const T& val) override;
-  virtual bool Push(size_t idx, T&& val) override;
+  bool Push(const T& val) override;
+  bool Push(T&& val) override;
+  bool Push(size_t idx, const T& val) override;
+  bool Push(size_t idx, T&& val) override;
   _Queue* queue_vec[kMaxConsumers];
-private:
+ private:
   DispatchQueue<T>* dispatch_queue_;
   size_t cur_index_;
 };
 
 template <typename T>
-bool DispatchQueue<T>::_Producer::Push(const T& val)
-{
+bool DispatchQueue<T>::_Producer::Push(const T& val) {
   size_t last_index = cur_index_;
   for (cur_index_++; cur_index_ < kMaxConsumers && queue_vec[cur_index_]; cur_index_++) {
     if (queue_vec[cur_index_]->Push(val))
@@ -117,11 +112,10 @@ bool DispatchQueue<T>::_Producer::Push(const T& val)
       return true;
   }
   return false;
-};
+}
 
 template <typename T>
-bool DispatchQueue<T>::_Producer::Push(T&& val)
-{
+bool DispatchQueue<T>::_Producer::Push(T&& val) {
   size_t last_index = cur_index_;
   for (cur_index_++; cur_index_ < kMaxConsumers && queue_vec[cur_index_]; cur_index_++) {
     if (queue_vec[cur_index_]->Push(std::move(val)))
@@ -132,19 +126,17 @@ bool DispatchQueue<T>::_Producer::Push(T&& val)
       return true;
   }
   return false;
-};
+}
 
 template <typename T>
-bool DispatchQueue<T>::_Producer::Push(size_t idx, const T& val)
-{
+bool DispatchQueue<T>::_Producer::Push(size_t idx, const T& val) {
   if (queue_vec[idx] && queue_vec[idx]->Push(val))
       return true;
   return false;
 }
 
 template <typename T>
-bool DispatchQueue<T>::_Producer::Push(size_t idx, T&& val)
-{
+bool DispatchQueue<T>::_Producer::Push(size_t idx, T&& val) {
   if (queue_vec[idx] && queue_vec[idx]->Push(std::move(val)))
       return true;
   return false;
@@ -153,19 +145,17 @@ bool DispatchQueue<T>::_Producer::Push(size_t idx, T&& val)
 ///////////////////////////////////////////////////////////////////
 
 template <typename T>
-class DispatchQueue<T>::_Consumer : public DispatchQueue<T>::InQueue
-{
-public:
+class DispatchQueue<T>::_Consumer : public DispatchQueue<T>::InQueue {
+ public:
   _Consumer(DispatchQueue<T>* dq)
-    : dispatch_queue_(dq), cur_index_(-1U)
-    , cur_index_read_cnt_(0)
-  {
+      : dispatch_queue_(dq), cur_index_(-1U)
+      , cur_index_read_cnt_(0) {
     memset(queue_vec, 0, sizeof(queue_vec));
   }
-  virtual bool Pop(T* ptr) override;
-  virtual bool PopWait(T* ptr, int timeout) override;
+  bool Pop(T* ptr) override;
+  bool PopWait(T* ptr, int timeout) override;
   _Queue* queue_vec[kMaxProducers];
-private:
+ private:
   static const size_t kMaxStickyReadCnt = 32;
   DispatchQueue<T>* dispatch_queue_;
   size_t cur_index_;
@@ -174,8 +164,7 @@ private:
 };
 
 template <typename T>
-bool DispatchQueue<T>::_Consumer::Pop(T* ptr)
-{
+bool DispatchQueue<T>::_Consumer::Pop(T* ptr) {
   // sticky read for performance
   if (cur_index_read_cnt_ && cur_index_read_cnt_ < kMaxStickyReadCnt) {
     if (queue_vec[cur_index_]->Pop(ptr)) {
@@ -199,11 +188,10 @@ bool DispatchQueue<T>::_Consumer::Pop(T* ptr)
     }
   }
   return false;
-}  
+}
 
 template <typename T>
-bool DispatchQueue<T>::_Consumer::PopWait(T* ptr, int timeout)
-{
+bool DispatchQueue<T>::_Consumer::PopWait(T* ptr, int timeout) {
   // naive impl now
   int sleep_ms = 0;
   while (!Pop(ptr)) {
@@ -213,21 +201,19 @@ bool DispatchQueue<T>::_Consumer::PopWait(T* ptr, int timeout)
     sleep_ms++;
   }
   return true;
-}  
+}
 
 ///////////////////////////////////////////////////////////////////
 
 template <typename T>
 DispatchQueue<T>::DispatchQueue(size_t qlen)
-  : qlen_(qlen), producer_count_(0), consumer_count_(0)
-{
+  : qlen_(qlen), producer_count_(0), consumer_count_(0) {
   memset(producers_, 0, sizeof(producers_));
   memset(consumers_, 0, sizeof(consumers_));
 }
 
 template <typename T>
-DispatchQueue<T>::~DispatchQueue()
-{
+DispatchQueue<T>::~DispatchQueue() {
   for (size_t i = 0; i < producer_count_; i++) {
     for (size_t j = 0; j < consumer_count_; j++) {
       delete producers_[i]->queue_vec[j];
@@ -242,8 +228,7 @@ DispatchQueue<T>::~DispatchQueue()
 }
 
 template <typename T>
-typename DispatchQueue<T>::OutQueue* DispatchQueue<T>::RegisterProducer()
-{
+typename DispatchQueue<T>::OutQueue* DispatchQueue<T>::RegisterProducer() {
   std::lock_guard<std::mutex> lock(mutex_);
 
   if (producer_count_ >= kMaxProducers)
@@ -261,8 +246,7 @@ typename DispatchQueue<T>::OutQueue* DispatchQueue<T>::RegisterProducer()
 }
 
 template <typename T>
-typename DispatchQueue<T>::InQueue* DispatchQueue<T>::RegisterConsumer()
-{
+typename DispatchQueue<T>::InQueue* DispatchQueue<T>::RegisterConsumer() {
   std::lock_guard<std::mutex> lock(mutex_);
 
   if (consumer_count_ >= kMaxConsumers)
@@ -279,6 +263,6 @@ typename DispatchQueue<T>::InQueue* DispatchQueue<T>::RegisterConsumer()
   return consumer;
 }
 
-} // namespace ccb
+}  // namespace ccb
 
-#endif // _CCB_DISPATCH_QUEUE_H
+#endif  // CCBASE_DISPATCH_QUEUE_H_

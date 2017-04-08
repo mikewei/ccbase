@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, Bin Wei <bin@vip.qq.com>
+/* Copyright (c) 2012-2017, Bin Wei <bin@vip.qq.com>
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
  * copyright notice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
- *     * The name of of its contributors may not be used to endorse or 
+ *     * The names of its contributors may not be used to endorse or 
  * promote products derived from this software without specific prior 
  * written permission.
  * 
@@ -27,8 +27,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _CCB_TOKEN_BUCKET_H
-#define _CCB_TOKEN_BUCKET_H
+#ifndef CCBASE_TOKEN_BUCKET_H_
+#define CCBASE_TOKEN_BUCKET_H_
 
 #include <sys/time.h>
 #include <stdint.h>
@@ -36,10 +36,9 @@
 
 namespace ccb {
 
-class TokenBucket
-{
-public:
-  TokenBucket(uint32_t tokens_per_sec);
+class TokenBucket {
+ public:
+  explicit TokenBucket(uint32_t tokens_per_sec);
   TokenBucket(uint32_t tokens_per_sec, uint32_t bucket_size);
   TokenBucket(uint32_t tokens_per_sec, uint32_t bucket_size,
               uint32_t init_tokens, const struct timeval* tv_now = nullptr);
@@ -53,7 +52,8 @@ public:
   uint32_t tokens() const;
   bool Check(uint32_t need_tokens);
   int Overdraft(uint32_t need_tokens);
-private:
+
+ private:
   // not movable
   TokenBucket(TokenBucket&&) = delete;
   TokenBucket& operator=(TokenBucket&&) = delete;
@@ -65,11 +65,10 @@ private:
   uint64_t last_calc_delta_;
 };
 
-inline uint32_t TokenBucket::tokens() const
-{
+inline uint32_t TokenBucket::tokens() const {
   return (uint32_t)(token_count_ <= 0 ? 0 : token_count_);
 }
 
-} // namespace ccb
+}  // namespace ccb
 
-#endif // _CCB_TOKEN_BUCKET_H
+#endif  // CCBASE_TOKEN_BUCKET_H_

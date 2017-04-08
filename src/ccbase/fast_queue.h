@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, Bin Wei <bin@vip.qq.com>
+/* Copyright (c) 2012-2017, Bin Wei <bin@vip.qq.com>
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
  * copyright notice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
- *     * The name of of its contributors may not be used to endorse or 
+ *     * The names of its contributors may not be used to endorse or 
  * promote products derived from this software without specific prior 
  * written permission.
  * 
@@ -27,11 +27,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _CCB_FAST_QUEUE_H
-#define _CCB_FAST_QUEUE_H
+#ifndef CCBASE_FAST_QUEUE_H_
+#define CCBASE_FAST_QUEUE_H_
 
-#include <poll.h>
 #include <memory>
+#include <utility>
 #include "ccbase/eventfd.h"
 #include "ccbase/memory.h"
 #include "ccbase/common.h"
@@ -39,25 +39,24 @@
 namespace ccb {
 
 template <typename T, bool kEnableNotify = true>
-class FastQueue
-{
-public:
-  FastQueue(size_t qlen);
+class FastQueue {
+ public:
+  explicit FastQueue(size_t qlen);
   ~FastQueue();
   bool Push(const T& val);
   bool Push(T&& val);
   bool Pop(T* ptr);
   bool PopWait(T* ptr, int timeout = -1);
   size_t used_size() {
-    return (tail_ >= head_) ? 
+    return (tail_ >= head_) ?
       (tail_ - head_) : (tail_ + qlen_ - head_);
   }
   size_t free_size() {
-    return (head_ > tail_) ? 
+    return (head_ > tail_) ?
       (head_ - 1 - tail_) : (head_ - 1 + qlen_ - tail_);
   }
 
-protected:
+ protected:
   void move_head() {
     size_t head = head_ + 1;
     if (head >= qlen_)
@@ -71,7 +70,7 @@ protected:
     tail_ = tail;
   }
 
-private:
+ private:
   NOT_COPYABLE_AND_MOVABLE(FastQueue);
 
   size_t qlen_;
@@ -82,20 +81,19 @@ private:
 };
 
 template <typename T, bool kEnableNotify>
-FastQueue<T,kEnableNotify>::FastQueue(size_t qlen)
-  : qlen_(qlen), head_(0), tail_(0) 
-    , event_(new EventFd())
-{
+FastQueue<T, kEnableNotify>::FastQueue(size_t qlen)
+    : qlen_(qlen), head_(0), tail_(0)
+    , event_(new EventFd()) {
   array_ = new T[qlen];
 }
 
 template <typename T, bool kEnableNotify>
-FastQueue<T,kEnableNotify>::~FastQueue() {
+FastQueue<T, kEnableNotify>::~FastQueue() {
   delete[] array_;
 }
 
 template <typename T, bool kEnableNotify>
-bool FastQueue<T,kEnableNotify>::Push(const T& val) {
+bool FastQueue<T, kEnableNotify>::Push(const T& val) {
   if (free_size() <= 0) {
     return false;
   }
@@ -113,7 +111,7 @@ bool FastQueue<T,kEnableNotify>::Push(const T& val) {
 }
 
 template <typename T, bool kEnableNotify>
-bool FastQueue<T,kEnableNotify>::Push(T&& val) {
+bool FastQueue<T, kEnableNotify>::Push(T&& val) {
   if (free_size() <= 0) {
     return false;
   }
@@ -131,8 +129,7 @@ bool FastQueue<T,kEnableNotify>::Push(T&& val) {
 }
 
 template <typename T, bool kEnableNotify>
-bool FastQueue<T,kEnableNotify>::Pop(T* ptr)
-{
+bool FastQueue<T, kEnableNotify>::Pop(T* ptr) {
   if (kEnableNotify) {
     // StoreLoad & global total order require barrier
     MemoryBarrier();
@@ -147,8 +144,7 @@ bool FastQueue<T,kEnableNotify>::Pop(T* ptr)
 }
 
 template <typename T, bool kEnableNotify>
-bool FastQueue<T,kEnableNotify>::PopWait(T* ptr, int timeout)
-{
+bool FastQueue<T, kEnableNotify>::PopWait(T* ptr, int timeout) {
   if (kEnableNotify) {
     while (!Pop(ptr)) {
       if (!event_->GetWait(timeout)) {
@@ -167,6 +163,6 @@ bool FastQueue<T,kEnableNotify>::PopWait(T* ptr, int timeout)
   return true;
 }
 
-} // namespace ccb
+}  // namespace ccb
 
-#endif // _CCB_FAST_QUEUE_H
+#endif  // CCBASE_FAST_QUEUE_H_
