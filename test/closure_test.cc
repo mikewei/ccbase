@@ -40,47 +40,47 @@ int ClosureTest::n = 0;
 TEST_F(ClosureTest, Run) {
   int expect = 0; n = 0;
   // NewClosure
-  ccb::NewClosure(ClosureTest::Function)->Run();
+  ccb::internal::NewClosure(ClosureTest::Function)->Run();
   ASSERT_EQ(++expect, n);
-  ccb::NewClosure(static_cast<ClosureTest*>(this), &ClosureTest::Method)->Run();
+  ccb::internal::NewClosure(static_cast<ClosureTest*>(this), &ClosureTest::Method)->Run();
   ASSERT_EQ(++expect, n);
-  ccb::NewClosure(static_cast<ClosureTest*>(this), &ClosureTest::Method_Args, 1)->Run(-1);
+  ccb::internal::NewClosure(static_cast<ClosureTest*>(this), &ClosureTest::Method_Args, 1)->Run(-1);
   ASSERT_EQ(++expect, n);
-  ccb::NewClosure(Functor())->Run();
+  ccb::internal::NewClosure(Functor())->Run();
   ASSERT_EQ(++expect, n);
-  ccb::NewClosure([]{ClosureTest::n++;})->Run();
+  ccb::internal::NewClosure([]{ClosureTest::n++;})->Run();
   ASSERT_EQ(++expect, n);
-  ccb::NewClosure(std::bind(&ClosureTest::Method, static_cast<ClosureTest*>(this)))->Run();
+  ccb::internal::NewClosure(std::bind(&ClosureTest::Method, static_cast<ClosureTest*>(this)))->Run();
   ASSERT_EQ(++expect, n);
   // NewPermanentClosure
-  ccb::Closure<void()>* ptr;
-  (ptr = ccb::NewPermanentClosure(ClosureTest::Function))->Run(); delete ptr;
+  ccb::internal::Closure<void()>* ptr;
+  (ptr = ccb::internal::NewPermanentClosure(ClosureTest::Function))->Run(); delete ptr;
   ASSERT_EQ(++expect, n);
-  (ptr = ccb::NewPermanentClosure(static_cast<ClosureTest*>(this), &ClosureTest::Method))->Run(); delete ptr;
+  (ptr = ccb::internal::NewPermanentClosure(static_cast<ClosureTest*>(this), &ClosureTest::Method))->Run(); delete ptr;
   ASSERT_EQ(++expect, n);
-  (ptr = ccb::NewPermanentClosure(static_cast<ClosureTest*>(this), &ClosureTest::Method_Args, 1, -1))->Run(); delete ptr;
+  (ptr = ccb::internal::NewPermanentClosure(static_cast<ClosureTest*>(this), &ClosureTest::Method_Args, 1, -1))->Run(); delete ptr;
   ASSERT_EQ(++expect, n);
-  (ptr = ccb::NewPermanentClosure(Functor()))->Run(); delete ptr;
+  (ptr = ccb::internal::NewPermanentClosure(Functor()))->Run(); delete ptr;
   ASSERT_EQ(++expect, n);
-  (ptr = ccb::NewPermanentClosure([]{ClosureTest::n++;}))->Run(); delete ptr;
+  (ptr = ccb::internal::NewPermanentClosure([]{ClosureTest::n++;}))->Run(); delete ptr;
   ASSERT_EQ(++expect, n);
-  (ptr = ccb::NewPermanentClosure(std::bind(&ClosureTest::Method, static_cast<ClosureTest*>(this))))->Run(); delete ptr;
+  (ptr = ccb::internal::NewPermanentClosure(std::bind(&ClosureTest::Method, static_cast<ClosureTest*>(this))))->Run(); delete ptr;
   ASSERT_EQ(++expect, n);
 }
 
 TEST_F(ClosureTest, Clone) {
   int expect = 0; n = 0;
-  ccb::Closure<void()>* ptr;
-  ccb::Closure<void()>* ptr2;
+  ccb::internal::Closure<void()>* ptr;
+  ccb::internal::Closure<void()>* ptr2;
   // NewClosure
-  ccb::NewClosure(ClosureTest::Function)->Run();
+  ccb::internal::NewClosure(ClosureTest::Function)->Run();
   ASSERT_EQ(++expect, n);
-  ptr = ccb::NewClosure(static_cast<ClosureTest*>(this), &ClosureTest::Method);
+  ptr = ccb::internal::NewClosure(static_cast<ClosureTest*>(this), &ClosureTest::Method);
   ptr->Clone()->Run();
   ptr->Run();
   ASSERT_EQ(++++expect, n);
   // NewPermanentClosure
-  ptr = ccb::NewPermanentClosure(static_cast<ClosureTest*>(this), &ClosureTest::Method_Args, 1, -1);
+  ptr = ccb::internal::NewPermanentClosure(static_cast<ClosureTest*>(this), &ClosureTest::Method_Args, 1, -1);
   ptr2 = ptr->Clone();
   ptr->Run(); delete ptr;
   ptr2->Run(); delete ptr2;
@@ -88,7 +88,7 @@ TEST_F(ClosureTest, Clone) {
 }
 
 PERF_TEST_F(ClosureTest, Perf) {
-  ccb::NewClosure(static_cast<ClosureTest*>(this), &ClosureTest::Method_Args, 1)->Run(-1);
+  ccb::internal::NewClosure(static_cast<ClosureTest*>(this), &ClosureTest::Method_Args, 1)->Run(-1);
 }
 
 TEST_F(ClosureFuncTest, Run) {
@@ -182,3 +182,32 @@ PERF_TEST_F(ClosureFuncTest, CopyCall) {
   ccb::ClosureFunc<void()>{f}();
 }
 
+PERF_TEST(CompareWithStdFunction, ClosureFunc_New) {
+  ccb::ClosureFunc<void()>{[]{}};
+}
+
+PERF_TEST(CompareWithStdFunction, StdFunction_New) {
+  std::function<void()>{[]{}};
+}
+
+PERF_TEST(CompareWithStdFunction, ClosureFunc_Copy) {
+  static ccb::ClosureFunc<void()> f = {[]{}};
+  ccb::ClosureFunc<void()>{f};
+}
+
+PERF_TEST(CompareWithStdFunction, StdFunction_Copy) {
+  static std::function<void()> f = {[]{}};
+  std::function<void()>{f};
+}
+
+PERF_TEST(CompareWithStdFunction, ClosureFunc_Move) {
+  static ccb::ClosureFunc<void()> f = {[]{}};
+  ccb::ClosureFunc<void()> f2{std::move(f)};
+  f = std::move(f2);
+}
+
+PERF_TEST(CompareWithStdFunction, StdFunction_Move) {
+  static std::function<void()> f = {[]{}};
+  std::function<void()> f2{std::move(f)};
+  f = std::move(f2);
+}

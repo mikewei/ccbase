@@ -37,41 +37,16 @@
 
 namespace ccb {
 
-// Closure base class
+namespace internal {
+
+class ClosureFuncBase;
+
 class ClosureBase {
  public:
   virtual ~ClosureBase() {}
   virtual bool IsPermanent() const = 0;
-};
-
-// Closure template
-template <typename Signature>
-class Closure : public ClosureBase {
- public:
-};
-
-template <typename Signature>
-class ClosureFunc {
- public:
-};
-
-$var total_args = 6
-$range i 0..total_args
-
-$for i [[
-
-$range j 1..i
-
-// Closure specified for $i arguments
-template <
-  typename R $for j [[, typename A$j]]
->
-class Closure<R($for j, [[A$j]])> : public ClosureBase {
- public:
-  Closure() : ref_count_(1) {}
-  Closure(const Closure& c) : ref_count_(1) {}
-  virtual R Run($for j, [[A$j a$j]]) = 0;
-  virtual Closure<R($for j, [[A$j]])>* Clone() = 0;
+  ClosureBase() : ref_count_(1) {}
+  ClosureBase(const ClosureBase& c) : ref_count_(1) {}
  private:
   void AddRef() {
     assert(ref_count_ > 0);
@@ -84,69 +59,32 @@ class Closure<R($for j, [[A$j]])> : public ClosureBase {
     }
   }
   std::atomic<int64_t> ref_count_;
-  friend class ClosureFunc<R($for j, [[A$j]])>;
+  friend ClosureFuncBase;
 };
 
-// forward declaraton for ClosureFunc
-template <typename R$for j [[, typename A$j]], typename F> Closure<R($for j, [[A$j]])>* NewPermanentClosure(F&&);
+template <typename Signature>
+class Closure : public ClosureBase {
+ public:
+};
+
+$var max_args = 6
+$range i 0..max_args
+
+$for i [[
+
+$range j 1..i
 
 template <
-  typename R $for j [[, typename A$j]]
+  typename R$for j [[, typename A$j]]
 >
-class ClosureFunc<R($for j, [[A$j]])> {
+class Closure<R($for j, [[A$j]])> : public ClosureBase {
  public:
-  typedef Closure<R($for j, [[A$j]])> ClosureType;
-  ClosureFunc() : p_(nullptr) {}
-  ClosureFunc(std::nullptr_t) : p_(nullptr) {}
-  template <class F, typename = typename std::enable_if<!std::is_same<typename std::decay<F>::type, ClosureFunc>::value>::type>
-  ClosureFunc(F&& f) noexcept : ClosureFunc(NewPermanentClosure<R$for j [[, A$j]]>(std::forward<F>(f))) {}
-  explicit ClosureFunc(ClosureType* p) noexcept : p_(p) {
-    assert(!p || p->IsPermanent());
-  }
-  ClosureFunc(const ClosureFunc& c) noexcept : ClosureFunc(c.share()) {}
-  ClosureFunc(ClosureFunc&& c) noexcept : p_(c.release()) {}
-  ~ClosureFunc() {
-    if (p_) p_->DelRef();
-  }
-  operator bool() const {
-    return static_cast<bool>(p_);
-  }
-  R operator()($for j, [[A$j a$j]]) const {
-    return p_->Run($for j, [[a$j]]);
-  }
-  void swap(ClosureFunc& c) {
-    std::swap(p_, c.p_);
-  }
-  void reset(ClosureType* p = nullptr) {
-    ClosureFunc(p).swap(*this);
-  }
-  ClosureFunc& operator=(const ClosureFunc& c) {
-    ClosureFunc(c).swap(*this);
-    return *this;
-  }
-  ClosureFunc& operator=(ClosureFunc&& c) {
-    ClosureFunc(std::move(c)).swap(*this);
-    return *this;
-  }
- private:
-  ClosureType* get() const {
-    return p_;
-  }
-  ClosureType* share() const {
-    if (p_) p_->AddRef();
-    return p_;
-  }
-  ClosureType* release() {
-    ClosureType* p = get();
-    p_ = nullptr;
-    return p;
-  }
-  ClosureType* p_;
+  virtual R Run($for j, [[A$j a$j]]) = 0;
+  virtual Closure<R($for j, [[A$j]])>* Clone() = 0;
 };
 
 ]]
 
-// Closure deleter
 template <bool Enabled, typename T>
 class ConditionalAutoDeleter {
  public:
@@ -164,10 +102,8 @@ class ConditionalAutoDeleter {
   T* p_;
 };
 
-$var total_bind_args = total_args
-
-$range nleft_args 0..total_args
-$range nbind_args 0..total_args
+$range nleft_args 0..max_args
+$range nbind_args 0..max_args
 
 $for nleft_args [[
 $for nbind_args [[
@@ -177,9 +113,7 @@ $range j 1..nbind_args
 $range k 1..nargs
 $range i nbind_args+1..nargs
 
-/////////////////////////////////////////////////////////////////////////////
-// Class method closures
-/////////////////////////////////////////////////////////////////////////////
+// Closures with $nleft_args args and $nbind_args pre-binded args
 
 template <
   bool Permanent,
@@ -224,16 +158,6 @@ NewPermanentClosure(Class *object, R(MethodClass::*method)($for k, [[Arg$k]])$fo
     object, method$for j [[, pa$j]]);
 }
 
-template <typename R, typename Class, typename MethodClass$for k [[, typename Arg$k]]$for j [[, typename PreArg$j]]>
-ClosureFunc<R($for i, [[Arg$i]])>
-BindClosure(Class *object, R(MethodClass::*method)($for k, [[Arg$k]])$for j [[, PreArg$j pa$j]]) {
-  return ClosureFunc<R ($for i, [[Arg$i]])>(NewPermanentClosure(object, method$for j [[, pa$j]]));
-}
-
-/////////////////////////////////////////////////////////////////////////////
-// Normal function closures
-/////////////////////////////////////////////////////////////////////////////
-
 template <
   bool Permanent,
   typename R$for k [[, typename Arg$k]]$for j [[, typename PreArg$j]]
@@ -271,16 +195,6 @@ Closure<R($for i, [[Arg$i]])>*
 NewPermanentClosure(R(*function)($for k, [[Arg$k]])$for j [[, PreArg$j pa$j]]) {
   return new FunctionClosure_Arg$(nleft_args)_Bind$nbind_args<true, R$for k [[, Arg$k]]$for j [[, PreArg$j]]>(function$for j [[, pa$j]]);
 }
-
-template <typename R$for k [[, typename Arg$k]]$for j [[, typename PreArg$j]]>
-ClosureFunc<R($for i, [[Arg$i]])>
-BindClosure(R(*function)($for k, [[Arg$k]])$for j [[, PreArg$j pa$j]]) {
-  return ClosureFunc<R($for i, [[Arg$i]])>(NewPermanentClosure(function$for j [[, pa$j]]));
-}
-
-/////////////////////////////////////////////////////////////////////////////
-// Functor closures
-/////////////////////////////////////////////////////////////////////////////
 
 template <
   bool Permanent, typename F,
@@ -323,18 +237,10 @@ NewPermanentClosure(F&& functor$for j [[, PreArg$j pa$j]]) {
     std::forward<F>(functor)$for j [[, pa$j]]);
 }
 
-template <typename R$for k [[, typename Arg$k]]$for j [[, typename PreArg$j]], typename F>
-ClosureFunc<R($for i, [[Arg$i]])>
-BindClosure(F&& functor$for j [[, PreArg$j pa$j]]) {
-  return ClosureFunc<R($for i, [[Arg$i]])>(NewPermanentClosure<R$for k [[, Arg$k]]$for j [[, PreArg$j]]>(std::forward<F>(functor)$for j [[, pa$j]]));
-}
-
 ]]
 ]]
 
-/////////////////////////////////////////////////////////////////////////////
-// Helper function for 0-Args-Functor
-/////////////////////////////////////////////////////////////////////////////
+// Helpers for 0-Args-Functor
 
 template <typename F>
 auto NewClosure(F&& functor) -> Closure<decltype(functor())()>* {
@@ -346,9 +252,141 @@ auto NewPermanentClosure(F&& functor) -> Closure<decltype(functor())()>* {
   return new FunctorClosure_Arg0_Bind0<true, typename std::decay<F>::type, decltype(functor())>(std::forward<F>(functor));
 }
 
+// Base of ccb::ClosureFunc
+
+class ClosureFuncBase {
+ protected:
+  ClosureFuncBase() : p_(nullptr) {}
+  ClosureFuncBase(std::nullptr_t) : p_(nullptr) {}
+  explicit ClosureFuncBase(ClosureBase* p) noexcept
+      : p_(p) {
+    assert(!p || p->IsPermanent());
+  }
+  ClosureFuncBase(const ClosureFuncBase& c) noexcept : ClosureFuncBase(c.share()) {}
+  ClosureFuncBase(ClosureFuncBase&& c) noexcept : p_(c.release()) {}
+  ~ClosureFuncBase() {
+    if (p_) p_->DelRef();
+  }
+  ClosureFuncBase& operator=(const ClosureFuncBase& c) {
+    ClosureFuncBase(c).swap(*this);
+    return *this;
+  }
+  ClosureFuncBase& operator=(ClosureFuncBase&& c) {
+    ClosureFuncBase(std::move(c)).swap(*this);
+    return *this;
+  }
+  ClosureBase* get() const {
+    return p_;
+  }
+  void reset(ClosureBase* p) {
+    ClosureFuncBase(p).swap(*this);
+  }
+  void swap(ClosureFuncBase& c) {
+    std::swap(p_, c.p_);
+  }
+ private:
+  ClosureBase* share() const {
+    if (p_) p_->AddRef();
+    return p_;
+  }
+  ClosureBase* release() {
+    ClosureBase* p = get();
+    p_ = nullptr;
+    return p;
+  }
+  ClosureBase* p_;
+};
+
+}  // namespace internal
+
+// Public class ClosureFunc
+
+template <typename Signature>
+class ClosureFunc {
+ public:
+};
+
+$range i 0..max_args
+
+$for i [[
+
+$range j 1..i
+
+template <
+  typename R$for j [[, typename A$j]]
+>
+class ClosureFunc<R($for j, [[A$j]])> : public internal::ClosureFuncBase {
+ public:
+  typedef internal::ClosureFuncBase BaseType;
+  typedef internal::Closure<R($for j, [[A$j]])> ClosureType;
+  ~ClosureFunc() = default;
+  // constructor
+  ClosureFunc() = default;
+  ClosureFunc(std::nullptr_t)
+      : ClosureFunc() {}
+  explicit ClosureFunc(ClosureType* p) noexcept
+      : ClosureFuncBase(p) {}
+  template <class F, typename = typename std::enable_if<!std::is_same<typename std::decay<F>::type, ClosureFunc>::value>::type>
+  ClosureFunc(F&& f) noexcept
+      : ClosureFuncBase(internal::NewPermanentClosure<R$for j [[, A$j]]>(std::forward<F>(f))) {}
+  // copyable and movable
+  ClosureFunc(const ClosureFunc& c) = default;
+  ClosureFunc& operator=(const ClosureFunc&) = default;
+  ClosureFunc(ClosureFunc&& c) = default;
+  ClosureFunc& operator=(ClosureFunc&&) = default;
+  // resetable and swappable
+  void reset() {
+    BaseType::reset(nullptr);
+  }
+  void swap(ClosureFunc& c) {
+    BaseType::swap(c);
+  }
+  // checkable
+  operator bool() const {
+    return static_cast<bool>(get());
+  }
+  // callable
+  R operator()($for j, [[A$j a$j]]) const {
+    return static_cast<ClosureType*>(get())->Run($for j, [[a$j]]);
+  }
+};
+
+]]
+
+$for nleft_args [[
+$for nbind_args [[
+
+$var nargs = nleft_args + nbind_args
+$range j 1..nbind_args
+$range k 1..nargs
+$range i nbind_args+1..nargs
+
+// Bind ClosureFunc<R($for i, [[Arg$i]])> with $nbind_args pre-binded args
+
+template <typename R, typename Class, typename MethodClass$for k [[, typename Arg$k]]$for j [[, typename PreArg$j]]>
+ClosureFunc<R($for i, [[Arg$i]])>
+BindClosure(Class *object, R(MethodClass::*method)($for k, [[Arg$k]])$for j [[, PreArg$j pa$j]]) {
+  return ClosureFunc<R($for i, [[Arg$i]])>(internal::NewPermanentClosure(object, method$for j [[, pa$j]]));
+}
+
+template <typename R$for k [[, typename Arg$k]]$for j [[, typename PreArg$j]]>
+ClosureFunc<R($for i, [[Arg$i]])>
+BindClosure(R(*function)($for k, [[Arg$k]])$for j [[, PreArg$j pa$j]]) {
+  return ClosureFunc<R($for i, [[Arg$i]])>(internal::NewPermanentClosure(function$for j [[, pa$j]]));
+}
+
+template <typename R$for k [[, typename Arg$k]]$for j [[, typename PreArg$j]], typename F>
+ClosureFunc<R($for i, [[Arg$i]])>
+BindClosure(F&& functor$for j [[, PreArg$j pa$j]]) {
+  return ClosureFunc<R($for i, [[Arg$i]])>(internal::NewPermanentClosure<R$for k [[, Arg$k]]$for j [[, PreArg$j]]>(std::forward<F>(functor)$for j [[, pa$j]]));
+}
+
+]]
+]]
+
 template <typename F>
 auto BindClosure(F&& functor) -> ClosureFunc<decltype(functor())()> {
-  return ClosureFunc<decltype(functor())()>(NewPermanentClosure(std::forward<F>(functor)));
+  return ClosureFunc<decltype(functor())()>(internal::NewPermanentClosure(std::forward<F>(functor)));
 }
 
 }  // namespace ccb
