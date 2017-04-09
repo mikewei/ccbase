@@ -63,7 +63,7 @@ class TimerWheel {
   tick_t GetCurrentTick() const;
 
  private:
-  NOT_COPYABLE_AND_MOVABLE(TimerWheel);
+  CCB_NOT_COPYABLE_AND_MOVABLE(TimerWheel);
 
   std::shared_ptr<TimerWheelImpl> pimpl_;
 };
@@ -79,7 +79,7 @@ class TimerOwner {
   void Cancel();
 
  private:
-  NOT_COPYABLE_AND_MOVABLE(TimerOwner);
+  CCB_NOT_COPYABLE_AND_MOVABLE(TimerOwner);
 
   std::unique_ptr<TimerWheelNode> timer_;
   std::shared_ptr<TimerWheelImpl> timer_wheel_;

@@ -35,7 +35,7 @@
 #include <stdio.h>
 #include <stdexcept>
 
-#define NOT_COPYABLE_AND_MOVABLE(ClassName) \
+#define CCB_NOT_COPYABLE_AND_MOVABLE(ClassName) \
   ClassName(const ClassName&) = delete; \
   void operator=(const ClassName&) = delete; \
   ClassName(ClassName&&) = delete; \

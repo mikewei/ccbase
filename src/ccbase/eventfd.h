@@ -92,7 +92,7 @@ class EventFd {
   }
 
  private:
-  NOT_COPYABLE_AND_MOVABLE(EventFd);
+  CCB_NOT_COPYABLE_AND_MOVABLE(EventFd);
 
   int fd_;
 };

@@ -71,7 +71,7 @@ class FastQueue {
   }
 
  private:
-  NOT_COPYABLE_AND_MOVABLE(FastQueue);
+  CCB_NOT_COPYABLE_AND_MOVABLE(FastQueue);
 
   size_t qlen_;
   volatile size_t head_;

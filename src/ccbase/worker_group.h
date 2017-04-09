@@ -66,7 +66,7 @@ class Worker : public TimerWheel {
   bool PostTask(ClosureFunc<void()> func);
 
  private:
-  NOT_COPYABLE_AND_MOVABLE(Worker);
+  CCB_NOT_COPYABLE_AND_MOVABLE(Worker);
 
   Worker(WorkerGroup* grp, size_t id, TaskQueue::InQueue* q);
   void WorkerMainEntry();
@@ -114,7 +114,7 @@ class WorkerGroup {
  private:
   TaskQueue::OutQueue* GetOutQueue();
 
-  NOT_COPYABLE_AND_MOVABLE(WorkerGroup);
+  CCB_NOT_COPYABLE_AND_MOVABLE(WorkerGroup);
 
   TaskQueue queue_;
   std::vector<std::unique_ptr<Worker>> workers_;

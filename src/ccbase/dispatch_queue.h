@@ -64,7 +64,7 @@ class DispatchQueue {
   InQueue* RegisterConsumer();
 
  private:
-  NOT_COPYABLE_AND_MOVABLE(DispatchQueue);
+  CCB_NOT_COPYABLE_AND_MOVABLE(DispatchQueue);
 
   size_t qlen_;
   typedef FastQueue<T, true> _Queue;
