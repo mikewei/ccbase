@@ -39,12 +39,13 @@ struct ListHead {
   struct ListHead* prev;
 };
 
-#define INIT_LIST_HEAD(ptr) do { \
-  (ptr)->next = (ptr); (ptr)->prev = (ptr); \
+#define CCB_INIT_LIST_HEAD(ptr) do { \
+  (ptr)->next = (ptr); \
+  (ptr)->prev = (ptr); \
 } while (0)
 
-#define LIST_HEAD_INIT(name) { &(name), &(name) }
-#define LIST_HEAD(name) \
+#define CCB_LIST_HEAD_INIT(name) { &(name), &(name) }
+#define CCB_LIST_HEAD(name) \
   ccb::ListHead name = LIST_HEAD_INIT(name)
 
 /*
@@ -53,7 +54,7 @@ struct ListHead {
  * This is only for internal list manipulation where we know
  * the prev/next entries already!
  */
-#define _LIST_ADD(node, prev_node, next_node) do { \
+#define CCB_LIST_ADD_INTERNAL(node, prev_node, next_node) do { \
   (next_node)->prev = (node); \
   (node)->next = (next_node); \
   (node)->prev = (prev_node); \
@@ -68,11 +69,11 @@ struct ListHead {
  * Insert a new entry after the specified head.
  * This is good for implementing stacks.
  */
-#define LIST_ADD(node, head) do { \
+#define CCB_LIST_ADD(node, head) do { \
   ccb::ListHead * newn = (node); \
   ccb::ListHead * prev = (head); \
   ccb::ListHead * next = (head)->next; \
-  _LIST_ADD(newn, prev, next); \
+  CCB_LIST_ADD_INTERNAL(newn, prev, next); \
 } while (0)
 
 /*
@@ -83,11 +84,11 @@ struct ListHead {
  * Insert a new entry before the specified head.
  * This is useful for implementing queues.
  */
-#define LIST_ADD_TAIL(node, head) do { \
+#define CCB_LIST_ADD_TAIL(node, head) do { \
   ccb::ListHead * newn = (node); \
   ccb::ListHead * prev = (head)->prev; \
   ccb::ListHead * next = (head); \
-  _LIST_ADD(newn, prev, next); \
+  CCB_LIST_ADD_INTERNAL(newn, prev, next); \
 } while (0)
 
 /*
@@ -97,7 +98,7 @@ struct ListHead {
  * This is only for internal list manipulation where we know
  * the prev/next entries already!
  */
-#define _LIST_DEL(prev_node, next_node) do { \
+#define CCB_LIST_DEL_INTERNAL(prev_node, next_node) do { \
   (next_node)->prev = (prev_node); \
   (prev_node)->next = (next_node); \
 } while (0)
@@ -107,33 +108,33 @@ struct ListHead {
  * @entry: the element to delete from the list.
  * Note: list_empty on entry does not return true after this, the entry is in an undefined state.
  */
-#define LIST_DEL(entry) do { \
+#define CCB_LIST_DEL(entry) do { \
   ccb::ListHead * prev = (entry)->prev; \
   ccb::ListHead * next = (entry)->next; \
-  _LIST_DEL(prev, next); \
+  CCB_LIST_DEL_INTERNAL(prev, next); \
 } while (0)
 
 /*
  * list_del_init - deletes entry from list and reinitialize it.
  * @entry: the element to delete from the list.
  */
-#define LIST_DEL_INIT(entry) do { \
-  LIST_DEL(entry); \
-  INIT_LIST_HEAD(entry); \
+#define CCB_LIST_DEL_INIT(entry) do { \
+  CCB_LIST_DEL(entry); \
+  CCB_INIT_LIST_HEAD(entry); \
 } while (0)
 
 /*
  * list_empty - tests whether a list is empty
  * @head: the list to test.
  */
-#define LIST_EMPTY(head) ((head)->next == (head))
+#define CCB_LIST_EMPTY(head) ((head)->next == (head))
 
 /*
  * list_splice - join two lists
  * @list: the new list to add.
  * @head: the place to add it in the first list.
  */
-#define LIST_SPLICE(list, head) do { \
+#define CCB_LIST_SPLICE(list, head) do { \
   ccb::ListHead * first = (list)->next; \
   if (first != (list)) { \
     ccb::ListHead * last = (list)->prev; \
@@ -150,7 +151,7 @@ struct ListHead {
  * @type:   the type of the struct this is embedded in.
  * @member: the name of the list_struct within the struct.
  */
-#define LIST_ENTRY(ptr, type, member) \
+#define CCB_LIST_ENTRY(ptr, type, member) \
   ((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))  // NOLINT
 
 /*
@@ -158,7 +159,7 @@ struct ListHead {
  * @pos:   the &struct list_head to use as a loop counter.
  * @head:  the head for your list.
  */
-#define LIST_FOR_EACH(pos, head) \
+#define CCB_LIST_FOR_EACH(pos, head) \
   for ((pos) = (head)->next; (pos) != (head); pos = (pos)->next)
 
 /*
@@ -167,7 +168,7 @@ struct ListHead {
  * @n:     another &struct list_head to use as temporary storage
  * @head:  the head for your list.
  */
-#define LIST_FOR_EACH_SAFE(pos, n, head) \
+#define CCB_LIST_FOR_EACH_SAFE(pos, n, head) \
   for ((pos) = (head)->next, (n) = (pos)->next; (pos) != (head); \
       (pos) = (n), (n) = (pos)->next)
 
@@ -176,7 +177,7 @@ struct ListHead {
  * @pos:   the &struct list_head to use as a loop counter.
  * @head:  the head for your list.
  */
-#define LIST_FOR_EACH_PREV(pos, head) \
+#define CCB_LIST_FOR_EACH_PREV(pos, head) \
   for ((pos) = (head)->prev; (pos) != (head); (pos) = (pos)->prev)
 
 

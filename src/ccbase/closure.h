@@ -222,7 +222,7 @@ template <
   bool Permanent, typename F,
   typename R>
 class FunctorClosure_Arg0_Bind0 : public Closure<R()> {
-public:
+ public:
   explicit FunctorClosure_Arg0_Bind0(const F& functor)
     : functor_(functor) {}
   explicit FunctorClosure_Arg0_Bind0(F&& functor)
@@ -236,7 +236,7 @@ public:
     return new FunctorClosure_Arg0_Bind0(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
 };
 
@@ -337,7 +337,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename PreArg1>
 class FunctorClosure_Arg0_Bind1 : public Closure<R()> {
-public:
+ public:
   explicit FunctorClosure_Arg0_Bind1(const F& functor, PreArg1 pa1)
     : functor_(functor), pa_1_(pa1) {}
   explicit FunctorClosure_Arg0_Bind1(F&& functor, PreArg1 pa1)
@@ -351,7 +351,7 @@ public:
     return new FunctorClosure_Arg0_Bind1(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
 };
@@ -465,7 +465,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename PreArg1, typename PreArg2>
 class FunctorClosure_Arg0_Bind2 : public Closure<R()> {
-public:
+ public:
   explicit FunctorClosure_Arg0_Bind2(const F& functor, PreArg1 pa1, PreArg2 pa2)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2) {}
   explicit FunctorClosure_Arg0_Bind2(F&& functor, PreArg1 pa1, PreArg2 pa2)
@@ -479,7 +479,7 @@ public:
     return new FunctorClosure_Arg0_Bind2(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -605,7 +605,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename PreArg1,
       typename PreArg2, typename PreArg3>
 class FunctorClosure_Arg0_Bind3 : public Closure<R()> {
-public:
+ public:
   explicit FunctorClosure_Arg0_Bind3(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -621,7 +621,7 @@ public:
     return new FunctorClosure_Arg0_Bind3(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -754,7 +754,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
 class FunctorClosure_Arg0_Bind4 : public Closure<R()> {
-public:
+ public:
   explicit FunctorClosure_Arg0_Bind4(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4) {}
@@ -771,7 +771,7 @@ public:
     return new FunctorClosure_Arg0_Bind4(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -918,7 +918,7 @@ template <
       typename Arg5, typename PreArg1, typename PreArg2, typename PreArg3,
       typename PreArg4, typename PreArg5>
 class FunctorClosure_Arg0_Bind5 : public Closure<R()> {
-public:
+ public:
   explicit FunctorClosure_Arg0_Bind5(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -936,7 +936,7 @@ public:
     return new FunctorClosure_Arg0_Bind5(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -1096,7 +1096,7 @@ template <
       typename Arg5, typename Arg6, typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4, typename PreArg5, typename PreArg6>
 class FunctorClosure_Arg0_Bind6 : public Closure<R()> {
-public:
+ public:
   explicit FunctorClosure_Arg0_Bind6(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -1114,7 +1114,7 @@ public:
     return new FunctorClosure_Arg0_Bind6(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -1227,7 +1227,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1>
 class FunctorClosure_Arg1_Bind0 : public Closure<R(Arg1)> {
-public:
+ public:
   explicit FunctorClosure_Arg1_Bind0(const F& functor)
     : functor_(functor) {}
   explicit FunctorClosure_Arg1_Bind0(F&& functor)
@@ -1241,7 +1241,7 @@ public:
     return new FunctorClosure_Arg1_Bind0(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
 };
 
@@ -1347,7 +1347,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename PreArg1>
 class FunctorClosure_Arg1_Bind1 : public Closure<R(Arg2)> {
-public:
+ public:
   explicit FunctorClosure_Arg1_Bind1(const F& functor, PreArg1 pa1)
     : functor_(functor), pa_1_(pa1) {}
   explicit FunctorClosure_Arg1_Bind1(F&& functor, PreArg1 pa1)
@@ -1361,7 +1361,7 @@ public:
     return new FunctorClosure_Arg1_Bind1(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
 };
@@ -1479,7 +1479,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename PreArg1,
       typename PreArg2>
 class FunctorClosure_Arg1_Bind2 : public Closure<R(Arg3)> {
-public:
+ public:
   explicit FunctorClosure_Arg1_Bind2(const F& functor, PreArg1 pa1, PreArg2 pa2)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2) {}
   explicit FunctorClosure_Arg1_Bind2(F&& functor, PreArg1 pa1, PreArg2 pa2)
@@ -1493,7 +1493,7 @@ public:
     return new FunctorClosure_Arg1_Bind2(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -1619,7 +1619,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename PreArg1, typename PreArg2, typename PreArg3>
 class FunctorClosure_Arg1_Bind3 : public Closure<R(Arg4)> {
-public:
+ public:
   explicit FunctorClosure_Arg1_Bind3(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -1635,7 +1635,7 @@ public:
     return new FunctorClosure_Arg1_Bind3(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -1772,7 +1772,7 @@ template <
       typename Arg5, typename PreArg1, typename PreArg2, typename PreArg3,
       typename PreArg4>
 class FunctorClosure_Arg1_Bind4 : public Closure<R(Arg5)> {
-public:
+ public:
   explicit FunctorClosure_Arg1_Bind4(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4) {}
@@ -1789,7 +1789,7 @@ public:
     return new FunctorClosure_Arg1_Bind4(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -1936,7 +1936,7 @@ template <
       typename Arg5, typename Arg6, typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4, typename PreArg5>
 class FunctorClosure_Arg1_Bind5 : public Closure<R(Arg6)> {
-public:
+ public:
   explicit FunctorClosure_Arg1_Bind5(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -1954,7 +1954,7 @@ public:
     return new FunctorClosure_Arg1_Bind5(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -2118,7 +2118,7 @@ template <
       typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5,
       typename PreArg6>
 class FunctorClosure_Arg1_Bind6 : public Closure<R(Arg7)> {
-public:
+ public:
   explicit FunctorClosure_Arg1_Bind6(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -2136,7 +2136,7 @@ public:
     return new FunctorClosure_Arg1_Bind6(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -2251,7 +2251,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2>
 class FunctorClosure_Arg2_Bind0 : public Closure<R(Arg1, Arg2)> {
-public:
+ public:
   explicit FunctorClosure_Arg2_Bind0(const F& functor)
     : functor_(functor) {}
   explicit FunctorClosure_Arg2_Bind0(F&& functor)
@@ -2265,7 +2265,7 @@ public:
     return new FunctorClosure_Arg2_Bind0(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
 };
 
@@ -2375,7 +2375,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename PreArg1>
 class FunctorClosure_Arg2_Bind1 : public Closure<R(Arg2, Arg3)> {
-public:
+ public:
   explicit FunctorClosure_Arg2_Bind1(const F& functor, PreArg1 pa1)
     : functor_(functor), pa_1_(pa1) {}
   explicit FunctorClosure_Arg2_Bind1(F&& functor, PreArg1 pa1)
@@ -2389,7 +2389,7 @@ public:
     return new FunctorClosure_Arg2_Bind1(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
 };
@@ -2510,7 +2510,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename PreArg1, typename PreArg2>
 class FunctorClosure_Arg2_Bind2 : public Closure<R(Arg3, Arg4)> {
-public:
+ public:
   explicit FunctorClosure_Arg2_Bind2(const F& functor, PreArg1 pa1, PreArg2 pa2)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2) {}
   explicit FunctorClosure_Arg2_Bind2(F&& functor, PreArg1 pa1, PreArg2 pa2)
@@ -2524,7 +2524,7 @@ public:
     return new FunctorClosure_Arg2_Bind2(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -2653,7 +2653,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename PreArg1, typename PreArg2, typename PreArg3>
 class FunctorClosure_Arg2_Bind3 : public Closure<R(Arg4, Arg5)> {
-public:
+ public:
   explicit FunctorClosure_Arg2_Bind3(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -2669,7 +2669,7 @@ public:
     return new FunctorClosure_Arg2_Bind3(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -2806,7 +2806,7 @@ template <
       typename Arg5, typename Arg6, typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4>
 class FunctorClosure_Arg2_Bind4 : public Closure<R(Arg5, Arg6)> {
-public:
+ public:
   explicit FunctorClosure_Arg2_Bind4(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4) {}
@@ -2823,7 +2823,7 @@ public:
     return new FunctorClosure_Arg2_Bind4(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -2976,7 +2976,7 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename PreArg1,
       typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5>
 class FunctorClosure_Arg2_Bind5 : public Closure<R(Arg6, Arg7)> {
-public:
+ public:
   explicit FunctorClosure_Arg2_Bind5(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -2994,7 +2994,7 @@ public:
     return new FunctorClosure_Arg2_Bind5(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -3161,7 +3161,7 @@ template <
       typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
       typename PreArg5, typename PreArg6>
 class FunctorClosure_Arg2_Bind6 : public Closure<R(Arg7, Arg8)> {
-public:
+ public:
   explicit FunctorClosure_Arg2_Bind6(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -3179,7 +3179,7 @@ public:
     return new FunctorClosure_Arg2_Bind6(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -3296,7 +3296,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename Arg3>
 class FunctorClosure_Arg3_Bind0 : public Closure<R(Arg1, Arg2, Arg3)> {
-public:
+ public:
   explicit FunctorClosure_Arg3_Bind0(const F& functor)
     : functor_(functor) {}
   explicit FunctorClosure_Arg3_Bind0(F&& functor)
@@ -3310,7 +3310,7 @@ public:
     return new FunctorClosure_Arg3_Bind0(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
 };
 
@@ -3422,7 +3422,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename PreArg1>
 class FunctorClosure_Arg3_Bind1 : public Closure<R(Arg2, Arg3, Arg4)> {
-public:
+ public:
   explicit FunctorClosure_Arg3_Bind1(const F& functor, PreArg1 pa1)
     : functor_(functor), pa_1_(pa1) {}
   explicit FunctorClosure_Arg3_Bind1(F&& functor, PreArg1 pa1)
@@ -3436,7 +3436,7 @@ public:
     return new FunctorClosure_Arg3_Bind1(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
 };
@@ -3558,7 +3558,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename PreArg1, typename PreArg2>
 class FunctorClosure_Arg3_Bind2 : public Closure<R(Arg3, Arg4, Arg5)> {
-public:
+ public:
   explicit FunctorClosure_Arg3_Bind2(const F& functor, PreArg1 pa1, PreArg2 pa2)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2) {}
   explicit FunctorClosure_Arg3_Bind2(F&& functor, PreArg1 pa1, PreArg2 pa2)
@@ -3572,7 +3572,7 @@ public:
     return new FunctorClosure_Arg3_Bind2(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -3705,7 +3705,7 @@ template <
       typename Arg5, typename Arg6, typename PreArg1, typename PreArg2,
       typename PreArg3>
 class FunctorClosure_Arg3_Bind3 : public Closure<R(Arg4, Arg5, Arg6)> {
-public:
+ public:
   explicit FunctorClosure_Arg3_Bind3(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -3721,7 +3721,7 @@ public:
     return new FunctorClosure_Arg3_Bind3(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -3863,7 +3863,7 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename PreArg1,
       typename PreArg2, typename PreArg3, typename PreArg4>
 class FunctorClosure_Arg3_Bind4 : public Closure<R(Arg5, Arg6, Arg7)> {
-public:
+ public:
   explicit FunctorClosure_Arg3_Bind4(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4) {}
@@ -3880,7 +3880,7 @@ public:
     return new FunctorClosure_Arg3_Bind4(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -4041,7 +4041,7 @@ template <
       typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4,
       typename PreArg5>
 class FunctorClosure_Arg3_Bind5 : public Closure<R(Arg6, Arg7, Arg8)> {
-public:
+ public:
   explicit FunctorClosure_Arg3_Bind5(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -4059,7 +4059,7 @@ public:
     return new FunctorClosure_Arg3_Bind5(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -4230,7 +4230,7 @@ template <
       typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
       typename PreArg4, typename PreArg5, typename PreArg6>
 class FunctorClosure_Arg3_Bind6 : public Closure<R(Arg7, Arg8, Arg9)> {
-public:
+ public:
   explicit FunctorClosure_Arg3_Bind6(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -4248,7 +4248,7 @@ public:
     return new FunctorClosure_Arg3_Bind6(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -4371,7 +4371,7 @@ template <
   bool Permanent, typename F,
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4>
 class FunctorClosure_Arg4_Bind0 : public Closure<R(Arg1, Arg2, Arg3, Arg4)> {
-public:
+ public:
   explicit FunctorClosure_Arg4_Bind0(const F& functor)
     : functor_(functor) {}
   explicit FunctorClosure_Arg4_Bind0(F&& functor)
@@ -4385,7 +4385,7 @@ public:
     return new FunctorClosure_Arg4_Bind0(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
 };
 
@@ -4501,7 +4501,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename PreArg1>
 class FunctorClosure_Arg4_Bind1 : public Closure<R(Arg2, Arg3, Arg4, Arg5)> {
-public:
+ public:
   explicit FunctorClosure_Arg4_Bind1(const F& functor, PreArg1 pa1)
     : functor_(functor), pa_1_(pa1) {}
   explicit FunctorClosure_Arg4_Bind1(F&& functor, PreArg1 pa1)
@@ -4515,7 +4515,7 @@ public:
     return new FunctorClosure_Arg4_Bind1(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
 };
@@ -4640,7 +4640,7 @@ template <
   typename R, typename Arg1, typename Arg2, typename Arg3, typename Arg4,
       typename Arg5, typename Arg6, typename PreArg1, typename PreArg2>
 class FunctorClosure_Arg4_Bind2 : public Closure<R(Arg3, Arg4, Arg5, Arg6)> {
-public:
+ public:
   explicit FunctorClosure_Arg4_Bind2(const F& functor, PreArg1 pa1, PreArg2 pa2)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2) {}
   explicit FunctorClosure_Arg4_Bind2(F&& functor, PreArg1 pa1, PreArg2 pa2)
@@ -4654,7 +4654,7 @@ public:
     return new FunctorClosure_Arg4_Bind2(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -4787,7 +4787,7 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename PreArg1,
       typename PreArg2, typename PreArg3>
 class FunctorClosure_Arg4_Bind3 : public Closure<R(Arg4, Arg5, Arg6, Arg7)> {
-public:
+ public:
   explicit FunctorClosure_Arg4_Bind3(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -4803,7 +4803,7 @@ public:
     return new FunctorClosure_Arg4_Bind3(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -4948,7 +4948,7 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename Arg8,
       typename PreArg1, typename PreArg2, typename PreArg3, typename PreArg4>
 class FunctorClosure_Arg4_Bind4 : public Closure<R(Arg5, Arg6, Arg7, Arg8)> {
-public:
+ public:
   explicit FunctorClosure_Arg4_Bind4(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4) {}
@@ -4965,7 +4965,7 @@ public:
     return new FunctorClosure_Arg4_Bind4(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -5128,7 +5128,7 @@ template <
       typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3,
       typename PreArg4, typename PreArg5>
 class FunctorClosure_Arg4_Bind5 : public Closure<R(Arg6, Arg7, Arg8, Arg9)> {
-public:
+ public:
   explicit FunctorClosure_Arg4_Bind5(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -5146,7 +5146,7 @@ public:
     return new FunctorClosure_Arg4_Bind5(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -5318,7 +5318,7 @@ template <
       typename Arg9, typename Arg10, typename PreArg1, typename PreArg2,
       typename PreArg3, typename PreArg4, typename PreArg5, typename PreArg6>
 class FunctorClosure_Arg4_Bind6 : public Closure<R(Arg7, Arg8, Arg9, Arg10)> {
-public:
+ public:
   explicit FunctorClosure_Arg4_Bind6(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -5337,7 +5337,7 @@ public:
     return new FunctorClosure_Arg4_Bind6(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -5468,7 +5468,7 @@ template <
       typename Arg5>
 class FunctorClosure_Arg5_Bind0 : public Closure<R(Arg1, Arg2, Arg3, Arg4,
     Arg5)> {
-public:
+ public:
   explicit FunctorClosure_Arg5_Bind0(const F& functor)
     : functor_(functor) {}
   explicit FunctorClosure_Arg5_Bind0(F&& functor)
@@ -5482,7 +5482,7 @@ public:
     return new FunctorClosure_Arg5_Bind0(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
 };
 
@@ -5602,7 +5602,7 @@ template <
       typename Arg5, typename Arg6, typename PreArg1>
 class FunctorClosure_Arg5_Bind1 : public Closure<R(Arg2, Arg3, Arg4, Arg5,
     Arg6)> {
-public:
+ public:
   explicit FunctorClosure_Arg5_Bind1(const F& functor, PreArg1 pa1)
     : functor_(functor), pa_1_(pa1) {}
   explicit FunctorClosure_Arg5_Bind1(F&& functor, PreArg1 pa1)
@@ -5616,7 +5616,7 @@ public:
     return new FunctorClosure_Arg5_Bind1(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
 };
@@ -5746,7 +5746,7 @@ template <
       typename PreArg2>
 class FunctorClosure_Arg5_Bind2 : public Closure<R(Arg3, Arg4, Arg5, Arg6,
     Arg7)> {
-public:
+ public:
   explicit FunctorClosure_Arg5_Bind2(const F& functor, PreArg1 pa1, PreArg2 pa2)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2) {}
   explicit FunctorClosure_Arg5_Bind2(F&& functor, PreArg1 pa1, PreArg2 pa2)
@@ -5760,7 +5760,7 @@ public:
     return new FunctorClosure_Arg5_Bind2(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -5900,7 +5900,7 @@ template <
       typename PreArg1, typename PreArg2, typename PreArg3>
 class FunctorClosure_Arg5_Bind3 : public Closure<R(Arg4, Arg5, Arg6, Arg7,
     Arg8)> {
-public:
+ public:
   explicit FunctorClosure_Arg5_Bind3(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -5916,7 +5916,7 @@ public:
     return new FunctorClosure_Arg5_Bind3(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -6074,7 +6074,7 @@ template <
       typename PreArg4>
 class FunctorClosure_Arg5_Bind4 : public Closure<R(Arg5, Arg6, Arg7, Arg8,
     Arg9)> {
-public:
+ public:
   explicit FunctorClosure_Arg5_Bind4(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4) {}
@@ -6091,7 +6091,7 @@ public:
     return new FunctorClosure_Arg5_Bind4(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -6260,7 +6260,7 @@ template <
       typename PreArg3, typename PreArg4, typename PreArg5>
 class FunctorClosure_Arg5_Bind5 : public Closure<R(Arg6, Arg7, Arg8, Arg9,
     Arg10)> {
-public:
+ public:
   explicit FunctorClosure_Arg5_Bind5(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -6279,7 +6279,7 @@ public:
     return new FunctorClosure_Arg5_Bind5(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -6458,7 +6458,7 @@ template <
       typename PreArg6>
 class FunctorClosure_Arg5_Bind6 : public Closure<R(Arg7, Arg8, Arg9, Arg10,
     Arg11)> {
-public:
+ public:
   explicit FunctorClosure_Arg5_Bind6(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -6477,7 +6477,7 @@ public:
     return new FunctorClosure_Arg5_Bind6(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -6610,7 +6610,7 @@ template <
       typename Arg5, typename Arg6>
 class FunctorClosure_Arg6_Bind0 : public Closure<R(Arg1, Arg2, Arg3, Arg4,
     Arg5, Arg6)> {
-public:
+ public:
   explicit FunctorClosure_Arg6_Bind0(const F& functor)
     : functor_(functor) {}
   explicit FunctorClosure_Arg6_Bind0(F&& functor)
@@ -6625,7 +6625,7 @@ public:
     return new FunctorClosure_Arg6_Bind0(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
 };
 
@@ -6751,7 +6751,7 @@ template <
       typename Arg5, typename Arg6, typename Arg7, typename PreArg1>
 class FunctorClosure_Arg6_Bind1 : public Closure<R(Arg2, Arg3, Arg4, Arg5,
     Arg6, Arg7)> {
-public:
+ public:
   explicit FunctorClosure_Arg6_Bind1(const F& functor, PreArg1 pa1)
     : functor_(functor), pa_1_(pa1) {}
   explicit FunctorClosure_Arg6_Bind1(F&& functor, PreArg1 pa1)
@@ -6766,7 +6766,7 @@ public:
     return new FunctorClosure_Arg6_Bind1(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
 };
@@ -6902,7 +6902,7 @@ template <
       typename PreArg1, typename PreArg2>
 class FunctorClosure_Arg6_Bind2 : public Closure<R(Arg3, Arg4, Arg5, Arg6,
     Arg7, Arg8)> {
-public:
+ public:
   explicit FunctorClosure_Arg6_Bind2(const F& functor, PreArg1 pa1, PreArg2 pa2)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2) {}
   explicit FunctorClosure_Arg6_Bind2(F&& functor, PreArg1 pa1, PreArg2 pa2)
@@ -6917,7 +6917,7 @@ public:
     return new FunctorClosure_Arg6_Bind2(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -7064,7 +7064,7 @@ template <
       typename Arg9, typename PreArg1, typename PreArg2, typename PreArg3>
 class FunctorClosure_Arg6_Bind3 : public Closure<R(Arg4, Arg5, Arg6, Arg7,
     Arg8, Arg9)> {
-public:
+ public:
   explicit FunctorClosure_Arg6_Bind3(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3) {}
@@ -7081,7 +7081,7 @@ public:
     return new FunctorClosure_Arg6_Bind3(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -7244,7 +7244,7 @@ template <
       typename PreArg3, typename PreArg4>
 class FunctorClosure_Arg6_Bind4 : public Closure<R(Arg5, Arg6, Arg7, Arg8,
     Arg9, Arg10)> {
-public:
+ public:
   explicit FunctorClosure_Arg6_Bind4(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4) {}
@@ -7263,7 +7263,7 @@ public:
     return new FunctorClosure_Arg6_Bind4(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -7436,7 +7436,7 @@ template <
       typename PreArg2, typename PreArg3, typename PreArg4, typename PreArg5>
 class FunctorClosure_Arg6_Bind5 : public Closure<R(Arg6, Arg7, Arg8, Arg9,
     Arg10, Arg11)> {
-public:
+ public:
   explicit FunctorClosure_Arg6_Bind5(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -7456,7 +7456,7 @@ public:
     return new FunctorClosure_Arg6_Bind5(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -7639,7 +7639,7 @@ template <
       typename PreArg5, typename PreArg6>
 class FunctorClosure_Arg6_Bind6 : public Closure<R(Arg7, Arg8, Arg9, Arg10,
     Arg11, Arg12)> {
-public:
+ public:
   explicit FunctorClosure_Arg6_Bind6(const F& functor, PreArg1 pa1,
       PreArg2 pa2, PreArg3 pa3, PreArg4 pa4, PreArg5 pa5, PreArg6 pa6)
     : functor_(functor), pa_1_(pa1), pa_2_(pa2), pa_3_(pa3), pa_4_(pa4),
@@ -7659,7 +7659,7 @@ public:
     return new FunctorClosure_Arg6_Bind6(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
   PreArg1 pa_1_;
   PreArg2 pa_2_;
@@ -7716,34 +7716,36 @@ auto NewPermanentClosure(F&& functor) -> Closure<decltype(functor())()>* {
 class ClosureFuncBase {
  protected:
   ClosureFuncBase() : p_(nullptr) {}
-  ClosureFuncBase(std::nullptr_t) : p_(nullptr) {}
+  ClosureFuncBase(std::nullptr_t) : p_(nullptr) {}  // NOLINT
   explicit ClosureFuncBase(ClosureBase* p) noexcept
       : p_(p) {
     assert(!p || p->IsPermanent());
   }
-  ClosureFuncBase(const ClosureFuncBase& c) noexcept :
-      ClosureFuncBase(c.share()) {}
-  ClosureFuncBase(ClosureFuncBase&& c) noexcept : p_(c.release()) {}
+  ClosureFuncBase(const ClosureFuncBase& c) noexcept
+      : ClosureFuncBase(c.share()) {}
+  ClosureFuncBase(ClosureFuncBase&& c) noexcept
+      : p_(c.release()) {}
   ~ClosureFuncBase() {
     if (p_) p_->DelRef();
   }
   ClosureFuncBase& operator=(const ClosureFuncBase& c) {
-    ClosureFuncBase(c).swap(*this);
+    ClosureFuncBase{c}.swap(*this);
     return *this;
   }
   ClosureFuncBase& operator=(ClosureFuncBase&& c) {
-    ClosureFuncBase(std::move(c)).swap(*this);
+    ClosureFuncBase{std::move(c)}.swap(*this);
     return *this;
   }
   ClosureBase* get() const {
     return p_;
   }
   void reset(ClosureBase* p) {
-    ClosureFuncBase(p).swap(*this);
+    ClosureFuncBase{p}.swap(*this);
   }
   void swap(ClosureFuncBase& c) {
     std::swap(p_, c.p_);
   }
+
  private:
   ClosureBase* share() const {
     if (p_) p_->AddRef();
@@ -7775,7 +7777,7 @@ class ClosureFunc<R()> : public internal::ClosureFuncBase {
   ~ClosureFunc() = default;
   // constructor
   ClosureFunc() = default;
-  ClosureFunc(std::nullptr_t)
+  ClosureFunc(std::nullptr_t)  // NOLINT
       : ClosureFunc() {}
   explicit ClosureFunc(ClosureType* p) noexcept
       : ClosureFuncBase(p) {}
@@ -7815,7 +7817,7 @@ class ClosureFunc<R(A1)> : public internal::ClosureFuncBase {
   ~ClosureFunc() = default;
   // constructor
   ClosureFunc() = default;
-  ClosureFunc(std::nullptr_t)
+  ClosureFunc(std::nullptr_t)  // NOLINT
       : ClosureFunc() {}
   explicit ClosureFunc(ClosureType* p) noexcept
       : ClosureFuncBase(p) {}
@@ -7856,7 +7858,7 @@ class ClosureFunc<R(A1, A2)> : public internal::ClosureFuncBase {
   ~ClosureFunc() = default;
   // constructor
   ClosureFunc() = default;
-  ClosureFunc(std::nullptr_t)
+  ClosureFunc(std::nullptr_t)  // NOLINT
       : ClosureFunc() {}
   explicit ClosureFunc(ClosureType* p) noexcept
       : ClosureFuncBase(p) {}
@@ -7897,7 +7899,7 @@ class ClosureFunc<R(A1, A2, A3)> : public internal::ClosureFuncBase {
   ~ClosureFunc() = default;
   // constructor
   ClosureFunc() = default;
-  ClosureFunc(std::nullptr_t)
+  ClosureFunc(std::nullptr_t)  // NOLINT
       : ClosureFunc() {}
   explicit ClosureFunc(ClosureType* p) noexcept
       : ClosureFuncBase(p) {}
@@ -7938,7 +7940,7 @@ class ClosureFunc<R(A1, A2, A3, A4)> : public internal::ClosureFuncBase {
   ~ClosureFunc() = default;
   // constructor
   ClosureFunc() = default;
-  ClosureFunc(std::nullptr_t)
+  ClosureFunc(std::nullptr_t)  // NOLINT
       : ClosureFunc() {}
   explicit ClosureFunc(ClosureType* p) noexcept
       : ClosureFuncBase(p) {}
@@ -7979,7 +7981,7 @@ class ClosureFunc<R(A1, A2, A3, A4, A5)> : public internal::ClosureFuncBase {
   ~ClosureFunc() = default;
   // constructor
   ClosureFunc() = default;
-  ClosureFunc(std::nullptr_t)
+  ClosureFunc(std::nullptr_t)  // NOLINT
       : ClosureFunc() {}
   explicit ClosureFunc(ClosureType* p) noexcept
       : ClosureFuncBase(p) {}
@@ -8022,7 +8024,7 @@ class ClosureFunc<R(A1, A2, A3, A4, A5,
   ~ClosureFunc() = default;
   // constructor
   ClosureFunc() = default;
-  ClosureFunc(std::nullptr_t)
+  ClosureFunc(std::nullptr_t)  // NOLINT
       : ClosureFunc() {}
   explicit ClosureFunc(ClosureType* p) noexcept
       : ClosureFuncBase(p) {}

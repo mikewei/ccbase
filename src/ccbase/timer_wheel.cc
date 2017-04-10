@@ -47,7 +47,7 @@ namespace ccb {
 constexpr int kTimerFlagAutoDel = 0x1;
 constexpr int kTimerFlagPeriod = 0x2;
 
-#define TIMER_WHEEL_NODE(head)  static_cast<TimerWheelNode*>(LIST_ENTRY(head, ListNode, list))
+#define TIMER_WHEEL_NODE(head)  static_cast<TimerWheelNode*>(CCB_LIST_ENTRY(head, ListNode, list))
 
 //--------------------------------------------------------------------
 
@@ -87,17 +87,17 @@ struct TimerWheelVecs {
   TimerWheelVecs() {
     int i;
     for (i = 0; i < TVN_SIZE; i++) {
-      INIT_LIST_HEAD(tv5.vec + i);
-      INIT_LIST_HEAD(tv4.vec + i);
-      INIT_LIST_HEAD(tv3.vec + i);
-      INIT_LIST_HEAD(tv2.vec + i);
+      CCB_INIT_LIST_HEAD(tv5.vec + i);
+      CCB_INIT_LIST_HEAD(tv4.vec + i);
+      CCB_INIT_LIST_HEAD(tv3.vec + i);
+      CCB_INIT_LIST_HEAD(tv2.vec + i);
     }
     tv5.index = 0;
     tv4.index = 0;
     tv3.index = 0;
     tv2.index = 0;
     for (i = 0; i < TVR_SIZE; i++) {
-      INIT_LIST_HEAD(tv1.vec + i);
+      CCB_INIT_LIST_HEAD(tv1.vec + i);
     }
     tv1.index = 0;
   }
@@ -134,7 +134,7 @@ class TimerWheelImpl : public std::enable_shared_from_this<TimerWheelImpl> {
   bool AddTimerNodeInLock(TimerWheelNode* node);
   void DelTimerNodeInLock(TimerWheelNode* node);
   void CascadeTimers(TimerVec* tv);
-  void PollTimerWheel(std::vector<ClosureFunc<void()>>* out);  // NOLINT
+  void PollTimerWheel(std::vector<ClosureFunc<void()>>* out);
   void InitTick();
   tick_t GetTickNow() const;
   tick_t ToTick(const struct timespec& ts) const;
@@ -267,7 +267,7 @@ void TimerWheelImpl::CascadeTimers(TimerVec* tv) {
     AddTimerNodeInLock(node);
     curr = next;
   }
-  INIT_LIST_HEAD(head);
+  CCB_INIT_LIST_HEAD(head);
   tv->index = (tv->index + 1) & TVN_MASK;
 }
 
@@ -276,12 +276,12 @@ void TimerWheelImpl::MoveOn() {
   cb_vec.reserve(200);
   PollTimerWheel(&cb_vec);
   // run callback without lock
-  for (auto& callback : cb_vec) {  // NOLINT
+  for (auto& callback : cb_vec) {
     if (callback) callback();
   }
 }
 
-void TimerWheelImpl::PollTimerWheel(std::vector<ClosureFunc<void()>>* out) {  // NOLINT
+void TimerWheelImpl::PollTimerWheel(std::vector<ClosureFunc<void()>>* out) {
   Locker lock(mutex_, enable_lock_);
 
   tick_t tick_to = GetTickNow();
@@ -354,7 +354,7 @@ bool TimerWheelImpl::AddTimerNodeInLock(TimerWheelNode* node) {
     } else {
     return false;
   }
-  LIST_ADD(&(node->list), vec->prev);
+  CCB_LIST_ADD(&(node->list), vec->prev);
   timer_count_++;
   return true;
 }
@@ -366,8 +366,8 @@ inline void TimerWheelImpl::DelTimerNode(TimerWheelNode* node) {
 
 inline void TimerWheelImpl::DelTimerNodeInLock(TimerWheelNode* node) {
   // unlink the node
-  if (!LIST_EMPTY(&(node->list))) {
-    LIST_DEL_INIT(&(node->list));
+  if (!CCB_LIST_EMPTY(&(node->list))) {
+    CCB_LIST_DEL_INIT(&(node->list));
     timer_count_--;
   }
 }

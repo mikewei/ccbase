@@ -30,8 +30,8 @@
 #ifndef CCBASE_THREAD_H_
 #define CCBASE_THREAD_H_
 
-#include <string>
 #include <thread>
+#include <string>
 #include "ccbase/common.h"
 #include "ccbase/closure.h"
 

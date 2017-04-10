@@ -201,7 +201,7 @@ template <
   typename R$for k [[, typename Arg$k]]$for j [[, typename PreArg$j]]
 >
 class FunctorClosure_Arg$(nleft_args)_Bind$nbind_args : public Closure<R($for i, [[Arg$i]])> {
-public:
+ public:
   explicit FunctorClosure_Arg$(nleft_args)_Bind$nbind_args(const F& functor$for j [[, PreArg$j pa$j]])
     : functor_(functor)$for j [[, pa_$(j)_(pa$j)]] {}
   explicit FunctorClosure_Arg$(nleft_args)_Bind$nbind_args(F&& functor$for j [[, PreArg$j pa$j]])
@@ -214,7 +214,7 @@ public:
     return new FunctorClosure_Arg$(nleft_args)_Bind$nbind_args(*this);
   }
   bool IsPermanent() const { return Permanent; }
-private:
+ private:
   F functor_;
 
 $for j [[
@@ -257,33 +257,36 @@ auto NewPermanentClosure(F&& functor) -> Closure<decltype(functor())()>* {
 class ClosureFuncBase {
  protected:
   ClosureFuncBase() : p_(nullptr) {}
-  ClosureFuncBase(std::nullptr_t) : p_(nullptr) {}
+  ClosureFuncBase(std::nullptr_t) : p_(nullptr) {}  // NOLINT
   explicit ClosureFuncBase(ClosureBase* p) noexcept
       : p_(p) {
     assert(!p || p->IsPermanent());
   }
-  ClosureFuncBase(const ClosureFuncBase& c) noexcept : ClosureFuncBase(c.share()) {}
-  ClosureFuncBase(ClosureFuncBase&& c) noexcept : p_(c.release()) {}
+  ClosureFuncBase(const ClosureFuncBase& c) noexcept
+      : ClosureFuncBase(c.share()) {}
+  ClosureFuncBase(ClosureFuncBase&& c) noexcept
+      : p_(c.release()) {}
   ~ClosureFuncBase() {
     if (p_) p_->DelRef();
   }
   ClosureFuncBase& operator=(const ClosureFuncBase& c) {
-    ClosureFuncBase(c).swap(*this);
+    ClosureFuncBase{c}.swap(*this);
     return *this;
   }
   ClosureFuncBase& operator=(ClosureFuncBase&& c) {
-    ClosureFuncBase(std::move(c)).swap(*this);
+    ClosureFuncBase{std::move(c)}.swap(*this);
     return *this;
   }
   ClosureBase* get() const {
     return p_;
   }
   void reset(ClosureBase* p) {
-    ClosureFuncBase(p).swap(*this);
+    ClosureFuncBase{p}.swap(*this);
   }
   void swap(ClosureFuncBase& c) {
     std::swap(p_, c.p_);
   }
+
  private:
   ClosureBase* share() const {
     if (p_) p_->AddRef();
@@ -322,7 +325,7 @@ class ClosureFunc<R($for j, [[A$j]])> : public internal::ClosureFuncBase {
   ~ClosureFunc() = default;
   // constructor
   ClosureFunc() = default;
-  ClosureFunc(std::nullptr_t)
+  ClosureFunc(std::nullptr_t)  // NOLINT
       : ClosureFunc() {}
   explicit ClosureFunc(ClosureType* p) noexcept
       : ClosureFuncBase(p) {}

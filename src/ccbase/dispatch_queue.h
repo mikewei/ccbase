@@ -33,9 +33,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <mutex>
 #include <vector>
 #include <utility>
-#include <mutex>
 #include "ccbase/fast_queue.h"
 
 namespace ccb {

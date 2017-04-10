@@ -30,11 +30,11 @@
 #ifndef CCBASE_WORKER_GROUP_H_
 #define CCBASE_WORKER_GROUP_H_
 
+#include <array>
 #include <thread>
 #include <atomic>
 #include <memory>
 #include <unordered_map>
-#include <array>
 #include <vector>
 #include "ccbase/common.h"
 #include "ccbase/closure.h"
