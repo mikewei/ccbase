@@ -41,10 +41,11 @@ class AccumulatedList {
  public:
   AccumulatedList()
       : head_(nullptr) {}
-  ~AccumulatedList() {}  // allow memory leaks here
+  ~AccumulatedList();
 
   T* AddNode();
   template <class F> void Travel(F&& f);
+  template <class F> T* FindNode(F&& f);
 
  private:
   CCB_NOT_COPYABLE_AND_MOVABLE(AccumulatedList);
@@ -73,42 +74,137 @@ T* AccumulatedList<T>::AddNode() {
 template <class T>
 template <class F>
 void AccumulatedList<T>::Travel(F&& f) {
-  for (Node* node = head_.load(std::memory_order_relaxed);
+  for (Node* node = head_.load(std::memory_order_seq_cst);
        node != nullptr; node = node->next) {
     f(&node->data);
   }
 }
 
+template <class T>
+template <class F>
+T* AccumulatedList<T>::FindNode(F&& f) {
+  for (Node* node = head_.load(std::memory_order_seq_cst);
+       node != nullptr; node = node->next) {
+    if (f(&node->data))
+      return &node->data;
+  }
+  return nullptr;
+}
 
-template <class T, class ScopeT>
-class TlsAccumulatedList {
+template <class T>
+AccumulatedList<T>::~AccumulatedList() {
+  for (Node* node = head_.load(std::memory_order_seq_cst);
+       node != nullptr; ) {
+    Node* next = node->next;
+    delete node;
+    node = next;
+  }
+}
+
+template <class T>
+class AllocatedList {
  public:
-  static T* TlsNode();
-  template <class F> static void Travel(F&& f);
+  AllocatedList() {}
+  ~AllocatedList() {}
+
+  T* Alloc();
+  void Free(T* ptr);
+  /* task care of concurrency issues here and it's caller's responsablity
+   * for thread-safety
+   */
+  template <class F> void Travel(F&& f);
 
  private:
-  static AccumulatedList<T> cls_acc_list_;
-  static thread_local T* tls_node_;
+  CCB_NOT_COPYABLE_AND_MOVABLE(AllocatedList);
+
+  struct Node {
+    std::atomic<bool> is_allocated;
+    T data;
+    Node() : is_allocated(true), data() {}
+  };
+  AccumulatedList<Node> list_;
+};
+
+template <class T>
+T* AllocatedList<T>::Alloc() {
+  Node* node = list_.FindNode([](Node* node) {
+    if (!node->is_allocated.load(std::memory_order_relaxed)) {
+      bool old_value = false;
+      if (node->is_allocated.compare_exchange_weak(
+                                 old_value, true,
+                                 std::memory_order_release,
+                                 std::memory_order_relaxed)) {
+        new (&node->data) T();
+        return true;
+      }
+    }
+    return false;
+  });
+  if (!node)
+    node = list_.AddNode();
+  return &node->data;
+}
+
+template <class T>
+void AllocatedList<T>::Free(T* ptr) {
+  Node* node = reinterpret_cast<Node*>(reinterpret_cast<char*>(ptr)
+                                       - offsetof(Node, data));
+  node->data.~T();
+  node->is_allocated.store(false, std::memory_order_release);
+}
+
+template <class T>
+template <class F>
+void AllocatedList<T>::Travel(F&& f) {
+  list_.Travel([&f](Node* node) {
+    if (node->is_allocated.load(std::memory_order_acquire)) {
+      f(&node->data);
+    }
+  });
+}
+
+template <class T, class ScopeT>
+class ThreadLocalList {
+ public:
+  T* LocalNode();
+  template <class F> void Travel(F&& f);
+
+ private:
+  static void FreeLocalNode(T* ptr);
+  static AllocatedList<T>* GlobalList();
+  static std::shared_ptr<AllocatedList<T>> CreateGlobalListOnce();
 };
 
 template <class T, class ScopeT>
-AccumulatedList<T> TlsAccumulatedList<T, ScopeT>::cls_acc_list_;
+T* ThreadLocalList<T, ScopeT>::LocalNode() {
+  static thread_local std::unique_ptr<T, decltype(&FreeLocalNode)>
+      tls_local_node{GlobalList()->Alloc(), &FreeLocalNode};
+  return tls_local_node.get();
+}
 
 template <class T, class ScopeT>
-thread_local T* TlsAccumulatedList<T, ScopeT>::tls_node_{nullptr};
-
-template <class T, class ScopeT>
-T* TlsAccumulatedList<T, ScopeT>::TlsNode() {
-  if (!tls_node_) {
-    tls_node_ = cls_acc_list_.AddNode();
-  }
-  return tls_node_;
+void ThreadLocalList<T, ScopeT>::FreeLocalNode(T* ptr) {
+  GlobalList()->Free(ptr);
 }
 
 template <class T, class ScopeT>
 template <class F>
-void TlsAccumulatedList<T, ScopeT>::Travel(F&& f) {
-  cls_acc_list_.Travel(std::forward<F>(f));
+void ThreadLocalList<T, ScopeT>::Travel(F&& f) {
+  GlobalList()->Travel(std::forward<F>(f));
+}
+
+template <class T, class ScopeT>
+AllocatedList<T>* ThreadLocalList<T, ScopeT>::GlobalList() {
+  static thread_local std::shared_ptr<AllocatedList<T>>
+      tls_global_list{CreateGlobalListOnce()};
+  return tls_global_list.get();
+}
+
+template <class T, class ScopeT>
+std::shared_ptr<AllocatedList<T>>
+ThreadLocalList<T, ScopeT>::CreateGlobalListOnce() {
+  static std::shared_ptr<AllocatedList<T>> g_list{new AllocatedList<T>()};
+  return g_list;
 }
 
 }  // namespace ccb
