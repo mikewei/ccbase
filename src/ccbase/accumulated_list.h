@@ -163,7 +163,7 @@ void AllocatedList<T>::Travel(F&& f) {
   });
 }
 
-template <class T, class ScopeT>
+template <class T, class ScopeT = T>
 class ThreadLocalList {
  public:
   T* LocalNode();
@@ -203,6 +203,7 @@ AllocatedList<T>* ThreadLocalList<T, ScopeT>::GlobalList() {
 template <class T, class ScopeT>
 std::shared_ptr<AllocatedList<T>>
 ThreadLocalList<T, ScopeT>::CreateGlobalListOnce() {
+  // a safe assumption: only called before return of main()
   static std::shared_ptr<AllocatedList<T>> g_list{new AllocatedList<T>()};
   return g_list;
 }
