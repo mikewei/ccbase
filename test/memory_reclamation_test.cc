@@ -47,7 +47,7 @@ class MemoryReclamationTest : public testing::Test {
     ASSERT_EQ(0, TraceableObj::allocated_objs());
   }
   ccb::PtrReclamationAdapter<TraceableObj, RType> recl_;
-  TraceableObj* ptr_{nullptr};
+  std::atomic<TraceableObj*> ptr_{nullptr};
 };
 TYPED_TEST_CASE(MemoryReclamationTest, TestTypes);
 
@@ -114,7 +114,7 @@ TYPED_TEST(MemoryReclamationTest, Simple) {
 
 TYPED_TEST(MemoryReclamationTest, Read) {
   auto deleter = [this] {
-    auto ptr = this->ptr_;
+    auto ptr = this->ptr_.load();
     this->ptr_ = nullptr;
     this->recl_.Retire(ptr);
     this->recl_.RetireCleanup();

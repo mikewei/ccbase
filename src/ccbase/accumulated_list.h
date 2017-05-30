@@ -27,10 +27,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef ACCUMULATED_LIST_H_
-#define ACCUMULATED_LIST_H_
+#ifndef CCBASE_ACCUMULATED_LIST_H_
+#define CCBASE_ACCUMULATED_LIST_H_
 
 #include <atomic>
+#include <memory>
 #include <utility>
 #include "ccbase/common.h"
 
@@ -210,4 +211,4 @@ ThreadLocalList<T, ScopeT>::CreateGlobalListOnce() {
 
 }  // namespace ccb
 
-#endif  // ACCUMULATED_LIST_H_
+#endif  // CCBASE_ACCUMULATED_LIST_H_
