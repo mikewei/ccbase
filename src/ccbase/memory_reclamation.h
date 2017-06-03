@@ -32,6 +32,7 @@
 
 #include <assert.h>
 #include <atomic>
+#include <memory>
 #include <vector>
 #include <utility>
 #include <algorithm>
@@ -59,6 +60,9 @@ class RefCountReclamation {
     Retire(ptr, [](T* p) {
       delete p;
     });
+  }
+  void Retire(T* ptr, std::default_delete<T>) {
+    Retire(ptr, nullptr);
   }
   template <class F>
   void Retire(T* ptr, F&& del_func) {
@@ -90,11 +94,6 @@ class EpochBasedReclamation {
   void ReadLock() {
     ReaderThreadState* state = reader_state_list_.LocalNode();
     state->is_active.store(true, std::memory_order_relaxed);
-    // a tricky condition is that update-global-epoch & check-and-update-again
-    // by other thread happens between load-global-epoch and store-local-epoch,
-    // and old-local-epoch happen to be new-local-epoch + 1. This case will
-    // have a stale local-epoch value (which is global-epoch - 2) but have no
-    // other damage. And this happens only theoretically with our 2^64 space.
     state->local_epoch.store(global_epoch_.load(std::memory_order_relaxed),
                              std::memory_order_relaxed);
     // memory_order_seq_cst is required to garentee that updated is_active
@@ -112,6 +111,10 @@ class EpochBasedReclamation {
     Retire(ptr, nullptr);
   }
 
+  void Retire(T* ptr, std::default_delete<T>) {
+    Retire(ptr, nullptr);
+  }
+
   /* Retire a pointer with user defined deletor
    * @ptr       pointer to the object to be retired
    * @del_func  deletor called when the retired object is reclaimed
@@ -124,11 +127,11 @@ class EpochBasedReclamation {
   template <class F>
   void Retire(T* ptr, F&& del_func) {
     // safety guideline: object retired in epoch N can only be referenced by
-    // readers in epoch N or N-1.
+    // readers running in epoch N or N-1.
     // - reader-get-epoch < reader-get-ref < ref-unreachable < get-retire-epoch
     //   so always have reader-epoch <= N
-    // - if global-epoch is at least N all current and future readers have
-    //   local epoch >= N-1
+    // - if global-epoch is at least N all current and future readers live in
+    //   epoch >= N-1
     TryReclaim();
     writer_state_.retire_lists[writer_state_.retire_epoch % kEpochSlots]
                  .emplace_back(ptr, std::forward<F>(del_func));
@@ -169,15 +172,17 @@ class EpochBasedReclamation {
   void TryUpdateEpoch() {
     // safety prove:
     // - if any reader's ReadLock-store-fence happens before the load below,
-    //   we see everything update and the result is correct
+    //   we must see the reader thread is active, and its local_epoch may lag
+    //   behind the epoch in which the critial-code is actually running
+    //   - if we see the reader's local-epoch is update, it must be true as we
+    //     assume the lag can't be as large as 2^64
+    //   - it we see the reader's local-epoch is old, it may be false-negative
+    //     but it is just safe as we will do nothing
     uint64_t epoch = global_epoch_.load(std::memory_order_seq_cst);
     // - if any reader's ReadLock-store-fence happens after the load above,
-    //   we may see dirty state here but the result is still safe:
-    //   - if we choose not to update epoch it's just ok
-    //   - if we choose to upate epoch we can't go wrong because the reader
-    //     critical-code always run in global-epoch (although maybe has stale
-    //     local-epoch value theoretically)
-
+    //   the reader's cirtial-code will be running in current global-epoch at
+    //   least. So no matter what we see and which decision we made it is
+    //   always safe.
     bool all_sync = true;
     reader_state_list_.Travel([epoch, &all_sync](ReaderThreadState* state) {
       if (state->is_active.load(std::memory_order_seq_cst)) {
@@ -220,7 +225,7 @@ class EpochBasedReclamation {
         if (del_func)
           del_func(ptr);
         else
-          delete ptr;
+          std::default_delete<T>()(ptr);
       }
     }
   };
@@ -269,6 +274,10 @@ class HazardPtrReclamation {
     Retire(ptr, nullptr);
   }
 
+  void Retire(T* ptr, std::default_delete<T>) {
+    Retire(ptr, nullptr);
+  }
+
   /* Retire a pointer with user defined deletor
    * @ptr       pointer to the object to be retired
    * @del_func  deletor called when the retired object is reclaimed
@@ -307,7 +316,7 @@ class HazardPtrReclamation {
     //     the double check following ReadLock will never see retired pointers
     //     therefore the reclamation safety always hold
     //   - if the reader's ReadLock complete before checks below, and
-    //   - if the reader's ReadUnlock begin after checks done, the reader has
+    //     if the reader's ReadUnlock begin after checks done, the reader has
     //     no reference definitely, else
     //   - if the reader's ReadUnlock begin before checks done, only 2 cases:
     //     - the reader has a ref and we acquired the release of ReadUnlock
@@ -373,7 +382,7 @@ class HazardPtrReclamation {
         if (del_func)
           del_func(ptr);
         else
-          delete ptr;
+          std::default_delete<T>()(ptr);
       }
     }
   };
