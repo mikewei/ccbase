@@ -110,9 +110,7 @@ class AllocatedList {
 
   T* Alloc();
   void Free(T* ptr);
-  /* task care of concurrency issues here and it's caller's responsablity
-   * for thread-safety
-   */
+  // caller should task care of concurrency issues here
   template <class F> void Travel(F&& f);
 
  private:
@@ -120,8 +118,16 @@ class AllocatedList {
 
   struct Node {
     std::atomic<bool> is_allocated;
-    T data;
-    Node() : is_allocated(true), data() {}
+    typename std::aligned_storage<sizeof(T), alignof(T)>::type data;
+
+    Node() : is_allocated(true) {
+      new (&data) T();
+    }
+    ~Node() {
+      if (is_allocated) {
+        reinterpret_cast<T*>(&data)->~T();
+      }
+    }
   };
   AccumulatedList<Node> list_;
 };
@@ -143,14 +149,14 @@ T* AllocatedList<T>::Alloc() {
   });
   if (!node)
     node = list_.AddNode();
-  return &node->data;
+  return reinterpret_cast<T*>(&node->data);
 }
 
 template <class T>
 void AllocatedList<T>::Free(T* ptr) {
   Node* node = reinterpret_cast<Node*>(reinterpret_cast<char*>(ptr)
                                        - offsetof(Node, data));
-  node->data.~T();
+  reinterpret_cast<T*>(&node->data)->~T();
   node->is_allocated.store(false, std::memory_order_release);
 }
 
@@ -159,7 +165,7 @@ template <class F>
 void AllocatedList<T>::Travel(F&& f) {
   list_.Travel([&f](Node* node) {
     if (node->is_allocated.load(std::memory_order_acquire)) {
-      f(&node->data);
+      f(reinterpret_cast<T*>(&node->data));
     }
   });
 }
