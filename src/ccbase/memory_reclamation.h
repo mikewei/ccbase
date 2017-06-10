@@ -53,24 +53,21 @@ class RefCountReclamation {
   void ReadLock() {
     ref_count_.fetch_add(1, std::memory_order_seq_cst);
   }
+
   void ReadUnlock() {
     ref_count_.fetch_sub(1, std::memory_order_seq_cst);
   }
+
   void Retire(T* ptr) {
-    Retire(ptr, [](T* p) {
-      delete p;
-    });
+    Retire(ptr, std::default_delete<T>());
   }
-  void Retire(T* ptr, std::default_delete<T>) {
-    Retire(ptr, nullptr);
-  }
+
   template <class F>
   void Retire(T* ptr, F&& del_func) {
     if (!ptr) return;
     while (ref_count_.load(std::memory_order_acquire)) {}
     del_func(ptr);
   }
-  void RetireCleanup() {}
 
   struct Trait {
     using ReadLockPointer = std::false_type;
@@ -258,16 +255,16 @@ class EpochBasedReclamation {
   };
 
   // static member variables
-  static ThreadLocalList<ThreadState> state_list_;
   static std::atomic<uint64_t> global_epoch_;
+  static ThreadLocalList<ThreadState> state_list_;
 };
+
+template <class T, class ScopeT>
+std::atomic<uint64_t> EpochBasedReclamation<T, ScopeT>::global_epoch_{0};
 
 template <class T, class ScopeT>
 ThreadLocalList<typename EpochBasedReclamation<T, ScopeT>::ThreadState>
 EpochBasedReclamation<T, ScopeT>::state_list_;
-
-template <class T, class ScopeT>
-std::atomic<uint64_t> EpochBasedReclamation<T, ScopeT>::global_epoch_{0};
 
 
 /* Hazard pointer based memory relcamation
@@ -456,7 +453,7 @@ class PtrReclamationAdapter : private Reclamation {
   template <class R = T*>
   typename std::enable_if<Reclamation::Trait::ReadLockPointer::value,
                           R>::type
-  ReadLock(std::atomic<T*>* atomic_ptr) {
+  ReadLock(const std::atomic<T*>* atomic_ptr) {
     T* ptr;
     do {
       ptr = atomic_ptr->load(std::memory_order_seq_cst);
@@ -468,7 +465,7 @@ class PtrReclamationAdapter : private Reclamation {
   template <class R = T*>
   typename std::enable_if<!Reclamation::Trait::ReadLockPointer::value,
                           R>::type
-  ReadLock(std::atomic<T*>* atomic_ptr) {
+  ReadLock(const std::atomic<T*>* atomic_ptr) {
     Reclamation::ReadLock();
     return atomic_ptr->load(std::memory_order_acquire);
   }
