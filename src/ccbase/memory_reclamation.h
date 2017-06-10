@@ -91,8 +91,8 @@ class EpochBasedReclamation {
  public:
   EpochBasedReclamation() = default;
 
-  void ReadLock() {
-    ReaderThreadState* state = reader_state_list_.LocalNode();
+  static void ReadLock() {
+    ReaderThreadState* state = &state_list_.LocalNode()->reader_state;
     state->is_active.store(true, std::memory_order_relaxed);
     state->local_epoch.store(global_epoch_.load(std::memory_order_relaxed),
                              std::memory_order_relaxed);
@@ -101,17 +101,17 @@ class EpochBasedReclamation {
     atomic_thread_fence(std::memory_order_seq_cst);
   }
 
-  void ReadUnlock() {
-    ReaderThreadState* state = reader_state_list_.LocalNode();
+  static void ReadUnlock() {
+    ReaderThreadState* state = &state_list_.LocalNode()->reader_state;
     // memory_order_release is required when leaving cirtical-section
     state->is_active.store(false, std::memory_order_release);
   }
 
-  void Retire(T* ptr) {
+  static void Retire(T* ptr) {
     Retire(ptr, nullptr);
   }
 
-  void Retire(T* ptr, std::default_delete<T>) {
+  static void Retire(T* ptr, std::default_delete<T>) {
     Retire(ptr, nullptr);
   }
 
@@ -125,7 +125,7 @@ class EpochBasedReclamation {
    * all threads (e.g. reset with memory_order_seq_cst)
    */
   template <class F>
-  void Retire(T* ptr, F&& del_func) {
+  static void Retire(T* ptr, F&& del_func) {
     // safety guideline: object retired in epoch N can only be referenced by
     // readers running in epoch N or N-1.
     // - reader-get-epoch < reader-get-ref < ref-unreachable < get-retire-epoch
@@ -133,11 +133,13 @@ class EpochBasedReclamation {
     // - if global-epoch is at least N all current and future readers live in
     //   epoch >= N-1
     TryReclaim();
-    writer_state_.retire_lists[writer_state_.retire_epoch % kEpochSlots]
+    WriterThreadState* writer_state = &state_list_.LocalNode()->writer_state;
+    writer_state->retire_lists[writer_state->retire_epoch % kEpochSlots]
                  .emplace_back(ptr, std::forward<F>(del_func));
     TryUpdateEpoch();
   }
-  void RetireCleanup() {
+
+  static void RetireCleanup() {
     for (size_t count = 0; count < kEpochSlots; ) {
       count += TryReclaim();
       TryUpdateEpoch();
@@ -152,25 +154,27 @@ class EpochBasedReclamation {
  private:
   CCB_NOT_COPYABLE_AND_MOVABLE(EpochBasedReclamation);
 
-  size_t TryReclaim() {
+  static size_t TryReclaim() {
+    WriterThreadState* writer_state = &state_list_.LocalNode()->writer_state;
     uint64_t epoch = global_epoch_.load(std::memory_order_seq_cst);
-    if (writer_state_.retire_epoch != epoch) {
-      size_t reclaim_slots = epoch - writer_state_.retire_epoch;
+    if (writer_state->retire_epoch != epoch) {
+      size_t reclaim_slots = epoch - writer_state->retire_epoch;
       if (reclaim_slots > kEpochSlots) {
         reclaim_slots = kEpochSlots;
       }
       for (size_t i = 1; i <= reclaim_slots; i++) {
-        auto& rlist = writer_state_.retire_lists[
-                          (writer_state_.retire_epoch + i) % kEpochSlots];
+        auto& rlist = writer_state->retire_lists[
+                          (writer_state->retire_epoch + i) % kEpochSlots];
         if (!rlist.empty()) rlist.clear();
       }
-      writer_state_.retire_epoch = epoch;
+      writer_state->retire_epoch = epoch;
       return reclaim_slots;
     }
     return 0;
   }
-  void TryUpdateEpoch() {
-    // safety prove:
+
+  static void TryUpdateEpoch() {
+    // safety proof:
     // - if any reader's ReadLock-store-fence happens before the load below,
     //   we must see the reader thread is active, and its local_epoch may lag
     //   behind the epoch in which the critial-code is actually running
@@ -184,10 +188,11 @@ class EpochBasedReclamation {
     //   least. So no matter what we see and which decision we made it is
     //   always safe.
     bool all_sync = true;
-    reader_state_list_.Travel([epoch, &all_sync](ReaderThreadState* state) {
-      if (state->is_active.load(std::memory_order_seq_cst)) {
+    state_list_.Travel([epoch, &all_sync](ThreadState* state) {
+      if (state->reader_state.is_active.load(std::memory_order_seq_cst)) {
         all_sync = all_sync &&
-            (state->local_epoch.load(std::memory_order_relaxed) == epoch);
+            (state->reader_state.local_epoch.load(std::memory_order_relaxed)
+                == epoch);
       }
     });
     if (all_sync) {
@@ -196,14 +201,13 @@ class EpochBasedReclamation {
                                           std::memory_order_relaxed);
     }
   }
-  // global epoch
-  static std::atomic<uint64_t> global_epoch_;
+
   // reader state
   struct ReaderThreadState {
     std::atomic<bool> is_active{false};
     std::atomic<uint64_t> local_epoch{0};
   };
-  ThreadLocalList<ReaderThreadState> reader_state_list_;
+
   // writer state
   struct RetireEntry {
     T* ptr;
@@ -229,20 +233,41 @@ class EpochBasedReclamation {
       }
     }
   };
+
   static constexpr size_t kEpochSlots = 2;  // only need 2 in this impl
+
   struct WriterThreadState {
-    size_t retire_epoch{0};
+    uint64_t retire_epoch{0};
     std::vector<RetireEntry> retire_lists[kEpochSlots];
+
+    ~WriterThreadState() {
+      // do cleanup if we have retired pointers not reclaimed
+      if (std::any_of(retire_lists, retire_lists + kEpochSlots,
+                      [](const std::vector<RetireEntry>& v) {
+                        return !v.empty();
+                      })) {
+        RetireCleanup();
+      }
+    }
   };
-  static thread_local WriterThreadState writer_state_;
+
+  // thread local state
+  struct ThreadState {
+    ReaderThreadState reader_state;
+    WriterThreadState writer_state;
+  };
+
+  // static member variables
+  static ThreadLocalList<ThreadState> state_list_;
+  static std::atomic<uint64_t> global_epoch_;
 };
 
 template <class T, class ScopeT>
-std::atomic<uint64_t> EpochBasedReclamation<T, ScopeT>::global_epoch_{0};
+ThreadLocalList<typename EpochBasedReclamation<T, ScopeT>::ThreadState>
+EpochBasedReclamation<T, ScopeT>::state_list_;
 
-template <class T, class ScopeT> thread_local
-typename EpochBasedReclamation<T, ScopeT>::WriterThreadState
-EpochBasedReclamation<T, ScopeT>::writer_state_;
+template <class T, class ScopeT>
+std::atomic<uint64_t> EpochBasedReclamation<T, ScopeT>::global_epoch_{0};
 
 
 /* Hazard pointer based memory relcamation
@@ -254,27 +279,27 @@ class HazardPtrReclamation {
  public:
   HazardPtrReclamation() = default;
 
-  void ReadLock(T* ptr, size_t index = 0) {
+  static void ReadLock(T* ptr, size_t index = 0) {
     assert(index < kHazardPtrNum);
-    ReaderThreadState* state = reader_state_list_.LocalNode();
+    ReaderThreadState* state = &state_list_.LocalNode()->reader_state;
     // memory_order_seq_cst is required to garentee that hazard pointer
     // is visable to all threads before critical-section
     state->hazard_ptrs[index].store(ptr, std::memory_order_seq_cst);
   }
 
-  void ReadUnlock() {
-    ReaderThreadState* state = reader_state_list_.LocalNode();
+  static void ReadUnlock() {
+    ReaderThreadState* state = &state_list_.LocalNode()->reader_state;
     for (auto& hp : state->hazard_ptrs) {
       // memory_order_release is required when leaving cirtical-section
       hp.store(nullptr, std::memory_order_release);
     }
   }
 
-  void Retire(T* ptr) {
+  static void Retire(T* ptr) {
     Retire(ptr, nullptr);
   }
 
-  void Retire(T* ptr, std::default_delete<T>) {
+  static void Retire(T* ptr, std::default_delete<T>) {
     Retire(ptr, nullptr);
   }
 
@@ -288,14 +313,17 @@ class HazardPtrReclamation {
    * all threads (e.g. reset with memory_order_seq_cst)
    */
   template <class F>
-  void Retire(T* ptr, F&& del_func) {
-    writer_state_.retire_list.emplace_back(ptr, std::forward<F>(del_func));
-    if (writer_state_.retire_list.size() >= kReclaimThreshold) {
+  static void Retire(T* ptr, F&& del_func) {
+    WriterThreadState* writer_state = &state_list_.LocalNode()->writer_state;
+    writer_state->retire_list.emplace_back(ptr, std::forward<F>(del_func));
+    if (writer_state->retire_list.size() >= kReclaimThreshold) {
       TryReclaim();
     }
   }
-  void RetireCleanup() {
-    while (!writer_state_.retire_list.empty()) {
+
+  static void RetireCleanup() {
+    WriterThreadState* writer_state = &state_list_.LocalNode()->writer_state;
+    while (!writer_state->retire_list.empty()) {
       TryReclaim();
     }
   }
@@ -308,8 +336,8 @@ class HazardPtrReclamation {
  private:
   CCB_NOT_COPYABLE_AND_MOVABLE(HazardPtrReclamation);
 
-  void TryReclaim() {
-    // safety prove:
+  static void TryReclaim() {
+    // safety proof:
     // - if we decide one pointer can't be reclaimed it's always safe
     // - if we decide one pointer can be reclaimed let's consider one reader:
     //   - if the reader's ReadLock complete after begining of checks below,
@@ -327,30 +355,31 @@ class HazardPtrReclamation {
     static thread_local std::vector<T*> hazard_ptr_vec;
     hazard_ptr_vec.clear();
     // collect and sort hazard-pointers
-    reader_state_list_.Travel([&hazard_ptr_vec](ReaderThreadState* state) {
-      for (auto& hp : state->hazard_ptrs) {
+    state_list_.Travel([&hazard_ptr_vec](ThreadState* state) {
+      for (auto& hp : state->reader_state.hazard_ptrs) {
         T* ptr = hp.load(std::memory_order_seq_cst);
         if (ptr) hazard_ptr_vec.push_back(ptr);
       }
     });
     std::sort(hazard_ptr_vec.begin(), hazard_ptr_vec.end());
     // filter out hazard pointers (survivors) from retire list
+    WriterThreadState* writer_state = &state_list_.LocalNode()->writer_state;
     size_t survivors = 0;
-    for (auto& entry : writer_state_.retire_list) {
+    for (auto& entry : writer_state->retire_list) {
       if (std::binary_search(hazard_ptr_vec.begin(),
                              hazard_ptr_vec.end(), entry.ptr)) {
-        writer_state_.retire_list[survivors++].swap(entry);
+        writer_state->retire_list[survivors++].swap(entry);
       }
     }
     // reclaim all entries except survivors
-    writer_state_.retire_list.resize(survivors);
+    writer_state->retire_list.resize(survivors);
   }
 
   // reader state
   struct ReaderThreadState {
     std::atomic<T*> hazard_ptrs[kHazardPtrNum];
   };
-  ThreadLocalList<ReaderThreadState> reader_state_list_;
+
   // writer state
   struct RetireEntry {
     T* ptr;
@@ -386,21 +415,35 @@ class HazardPtrReclamation {
       }
     }
   };
+
   struct WriterThreadState {
     std::vector<RetireEntry> retire_list;
+
+    ~WriterThreadState() {
+      // do cleanup if we have retired pointers not reclaimed
+      if (!retire_list.empty()) {
+        RetireCleanup();
+      }
+    }
   };
-  static thread_local WriterThreadState writer_state_;
+
+  // thread local state
+  struct ThreadState {
+    ReaderThreadState reader_state;
+    WriterThreadState writer_state;
+  };
+
+  // static member variables
+  static ThreadLocalList<ThreadState> state_list_;
 };
 
 template <class T, class ScopeT,
           size_t kHazardPtrNum,
-          size_t kReclaimThreshold> thread_local
-typename HazardPtrReclamation<T, ScopeT,
-                              kHazardPtrNum,
-                              kReclaimThreshold>::WriterThreadState
-HazardPtrReclamation<T, ScopeT,
-                     kHazardPtrNum,
-                     kReclaimThreshold>::writer_state_;
+          size_t kReclaimThreshold>
+ThreadLocalList<typename HazardPtrReclamation<T, ScopeT, kHazardPtrNum,
+    kReclaimThreshold>::ThreadState>
+HazardPtrReclamation<T, ScopeT, kHazardPtrNum,
+    kReclaimThreshold>::state_list_;
 
 
 /* An adapter class for single pointer reclamation
