@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <atomic>
+#include <memory>
 #include <thread>
 #include "gtestx/gtestx.h"
 #include "ccbase/concurrent_ptr.h"
@@ -97,10 +98,10 @@ class ConcurrentPtrPerfTest : public ConcurrentPtrTest<RType> {
  protected:
   void SetUp() {
     ConcurrentPtrTest<RType>::SetUp();
+    this->conc_ptr_.Reset(new TraceableObj);
     auto reader_code = [this] {
       while (!stop_flag_.load(std::memory_order_relaxed)) {
         typename decltype(this->conc_ptr_)::Reader reader(&this->conc_ptr_);
-        if (!reader.get()) continue;
         for (int i = 0; i < 100; i++) {
           ASSERT_EQ(1, reader->val());
         }
@@ -144,9 +145,7 @@ TYPED_PERF_TEST(ConcurrentPtrPerfTest, ResetPerf) {
 
 TYPED_PERF_TEST(ConcurrentPtrPerfTest, ReaderPerf) {
   typename decltype(this->conc_ptr_)::Reader reader(&this->conc_ptr_);
-  if (reader.get()) {
-    ASSERT_EQ(1, reader->val()) << PERF_ABORT;
-  }
+  ASSERT_EQ(1, reader->val()) << PERF_ABORT;
 }
 
 template <class RType>
@@ -186,4 +185,111 @@ TYPED_TEST(ConcurrentSharedPtrTest, Reset) {
   this->cs_ptr_.Reset(true);
 }
 
+template <class RType>
+class ConcurrentSharedPtrPerfTest : public ConcurrentSharedPtrTest<RType> {
+ protected:
+  void SetUp() {
+    ConcurrentSharedPtrTest<RType>::SetUp();
+    this->cs_ptr_.Reset(new TraceableObj);
+    auto reader_code = [this] {
+      while (!stop_flag_.load(std::memory_order_relaxed)) {
+        std::shared_ptr<TraceableObj> ptr = this->cs_ptr_.Get();
+        for (int i = 0; i < 100; i++) {
+          ASSERT_EQ(1, ptr->val());
+        }
+      }
+    };
+    for (auto& t : reader_tasks_) {
+      t = std::thread(reader_code);
+    }
+    auto writer_code = [this] {
+      while (!stop_flag_.load(std::memory_order_relaxed)) {
+        this->cs_ptr_.Reset(new TraceableObj);
+      }
+      this->cs_ptr_.Reset(true);
+    };
+    for (auto& t : writer_tasks_) {
+      t = std::thread(writer_code);
+    }
+  }
+
+  void TearDown() {
+    stop_flag_.store(true);
+    for (auto& t : reader_tasks_) {
+      t.join();
+    }
+    for (auto& t : writer_tasks_) {
+      t.join();
+    }
+    this->cs_ptr_.Reset(true);
+    ConcurrentSharedPtrTest<RType>::TearDown();
+  }
+
+  std::thread reader_tasks_[2];
+  std::thread writer_tasks_[1];
+  std::atomic<bool> stop_flag_{false};
+};
+TYPED_TEST_CASE(ConcurrentSharedPtrPerfTest, TestTypes<std::shared_ptr<TraceableObj>>);
+
+TYPED_PERF_TEST(ConcurrentSharedPtrPerfTest, ResetPerf) {
+  this->cs_ptr_.Reset(new TraceableObj);
+}
+
+TYPED_PERF_TEST(ConcurrentSharedPtrPerfTest, ReaderPerf) {
+  ASSERT_EQ(1, this->cs_ptr_->val()) << PERF_ABORT;
+}
+
+// not done as atomic std::shared_ptr is not available below gcc-5.0
+#if 0 && defined(__GNUC__) && __GNUC__ >= 5
+class StdAtomicSharedPtrPerfTest : public testing::Test {
+ protected:
+  void SetUp() {
+    std::atomic_store(&this->as_ptr_, std::make_shared<TraceableObj>());
+    auto reader_code = [this] {
+      while (!stop_flag_.load(std::memory_order_relaxed)) {
+        std::shared_ptr<TraceableObj> ptr = std::atomic_load(&this->as_ptr_);
+        for (int i = 0; i < 100; i++) {
+          ASSERT_EQ(1, ptr->val());
+        }
+      }
+    };
+    for (auto& t : reader_tasks_) {
+      t = std::thread(reader_code);
+    }
+    auto writer_code = [this] {
+      while (!stop_flag_.load(std::memory_order_relaxed)) {
+        std::atomic_store(&this->as_ptr_, std::make_shared<TraceableObj>());
+      }
+      std::atomic_store(&this->as_ptr_, std::shared_ptr<TraceableObj>());
+    };
+    for (auto& t : writer_tasks_) {
+      t = std::thread(writer_code);
+    }
+  }
+
+  void TearDown() {
+    stop_flag_.store(true);
+    for (auto& t : reader_tasks_) {
+      t.join();
+    }
+    for (auto& t : writer_tasks_) {
+      t.join();
+    }
+    std::atomic_store(&this->as_ptr_, std::shared_ptr<TraceableObj>());
+  }
+
+  std::thread reader_tasks_[2];
+  std::thread writer_tasks_[1];
+  std::atomic<bool> stop_flag_{false};
+  std::shared_ptr<TraceableObj> as_ptr_;
+};
+
+PERF_TEST_F(StdAtomicSharedPtrPerfTest, ResetPerf) {
+  std::atomic_store(&this->as_ptr_, std::make_shared<TraceableObj>());
+}
+
+PERF_TEST_F(StdAtomicSharedPtrPerfTest, ReaderPerf) {
+  ASSERT_EQ(1, std::atomic_load(&this->as_ptr_)->val()) << PERF_ABORT;
+}
+#endif
 
