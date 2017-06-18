@@ -34,13 +34,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <mutex>
+#include <atomic>
 #include <vector>
 #include <utility>
 #include "ccbase/fast_queue.h"
 
 namespace ccb {
 
-template <typename T>
+template <class T, size_t kMaxProducers = 1024,
+                   size_t kMaxConsumers = 1024>
 class DispatchQueue {
  public:
   class OutQueue {
@@ -51,6 +53,7 @@ class DispatchQueue {
     virtual bool Push(size_t idx, const T& val) = 0;
     virtual bool Push(size_t idx, T&& val) = 0;
   };
+
   class InQueue {
    public:
     virtual ~InQueue() {}
@@ -60,114 +63,145 @@ class DispatchQueue {
 
   explicit DispatchQueue(size_t qlen);
   virtual ~DispatchQueue();
+
   OutQueue* RegisterProducer();
   InQueue* RegisterConsumer();
 
  private:
   CCB_NOT_COPYABLE_AND_MOVABLE(DispatchQueue);
 
-  size_t qlen_;
-  typedef FastQueue<T, true> _Queue;
-  std::mutex mutex_;
+  using Queue = FastQueue<T, false>;
+  class Producer;
+  class Consumer;
 
-  class _Producer;
-  class _Consumer;
-  static const size_t kMaxProducers = 1024;
-  static const size_t kMaxConsumers = 1024;
-  // use plain array for lock-free appending
-  _Producer* producers_[kMaxProducers];
-  _Consumer* consumers_[kMaxConsumers];
-  size_t producer_count_;
-  size_t consumer_count_;
+  size_t qlen_;
+  std::mutex mutex_;
+  std::atomic<Producer*> producers_[kMaxProducers];
+  std::atomic<Consumer*> consumers_[kMaxConsumers];
+  std::atomic<size_t> producer_count_;
+  std::atomic<size_t> consumer_count_;
 };
 
 ///////////////////////////////////////////////////////////////////
 
-template <typename T>
-class DispatchQueue<T>::_Producer : public DispatchQueue<T>::OutQueue {
+template <class T, size_t kMaxProducers, size_t kMaxConsumers>
+class DispatchQueue<T, kMaxProducers, kMaxConsumers>::Producer
+    : public DispatchQueue<T, kMaxProducers, kMaxConsumers>::OutQueue {
  public:
-  _Producer(DispatchQueue<T>* dq)
+  Producer(DispatchQueue<T, kMaxProducers, kMaxConsumers>* dq)
       : dispatch_queue_(dq), cur_index_(-1U) {
-    memset(queue_vec, 0, sizeof(queue_vec));
+    for (auto& ap : queue_vec)
+      // std::atomic_init is not available in gcc-4.9
+      ap.store(nullptr, std::memory_order_relaxed);
   }
   bool Push(const T& val) override;
   bool Push(T&& val) override;
   bool Push(size_t idx, const T& val) override;
   bool Push(size_t idx, T&& val) override;
-  _Queue* queue_vec[kMaxConsumers];
+
+  std::atomic<Queue*> queue_vec[kMaxConsumers];
+
  private:
-  DispatchQueue<T>* dispatch_queue_;
+  DispatchQueue<T, kMaxProducers, kMaxConsumers>* dispatch_queue_;
   size_t cur_index_;
 };
 
-template <typename T>
-bool DispatchQueue<T>::_Producer::Push(const T& val) {
+template <class T, size_t kMaxProducers, size_t kMaxConsumers>
+bool DispatchQueue<T, kMaxProducers, kMaxConsumers>
+    ::Producer::Push(const T& val) {
   size_t last_index = cur_index_;
-  for (cur_index_++; cur_index_ < kMaxConsumers && queue_vec[cur_index_]; cur_index_++) {
-    if (queue_vec[cur_index_]->Push(val))
+  for (cur_index_++; cur_index_ < kMaxConsumers; cur_index_++) {
+    Queue* qptr = queue_vec[cur_index_].load(std::memory_order_acquire);
+    if (qptr == nullptr)
+      break;
+    if (qptr->Push(val))
       return true;
   }
-  for (cur_index_=0; cur_index_ <= last_index && queue_vec[cur_index_]; cur_index_++) {
-    if (queue_vec[cur_index_]->Push(val))
+  for (cur_index_ = 0; cur_index_ <= last_index; cur_index_++) {
+    Queue* qptr = queue_vec[cur_index_].load(std::memory_order_acquire);
+    if (qptr == nullptr)
+      break;
+    if (qptr->Push(val))
       return true;
   }
   return false;
 }
 
-template <typename T>
-bool DispatchQueue<T>::_Producer::Push(T&& val) {
+template <class T, size_t kMaxProducers, size_t kMaxConsumers>
+bool DispatchQueue<T, kMaxProducers, kMaxConsumers>
+    ::Producer::Push(T&& val) {
   size_t last_index = cur_index_;
-  for (cur_index_++; cur_index_ < kMaxConsumers && queue_vec[cur_index_]; cur_index_++) {
-    if (queue_vec[cur_index_]->Push(std::move(val)))
+  for (cur_index_++; cur_index_ < kMaxConsumers; cur_index_++) {
+    Queue* qptr = queue_vec[cur_index_].load(std::memory_order_acquire);
+    if (qptr == nullptr)
+      break;
+    if (qptr->Push(std::move(val)))
       return true;
   }
-  for (cur_index_=0; cur_index_ <= last_index && queue_vec[cur_index_]; cur_index_++) {
-    if (queue_vec[cur_index_]->Push(std::move(val)))
+  for (cur_index_ = 0; cur_index_ <= last_index; cur_index_++) {
+    Queue* qptr = queue_vec[cur_index_].load(std::memory_order_acquire);
+    if (qptr == nullptr)
+      break;
+    if (qptr->Push(std::move(val)))
       return true;
   }
   return false;
 }
 
-template <typename T>
-bool DispatchQueue<T>::_Producer::Push(size_t idx, const T& val) {
-  if (queue_vec[idx] && queue_vec[idx]->Push(val))
-      return true;
+template <class T, size_t kMaxProducers, size_t kMaxConsumers>
+bool DispatchQueue<T, kMaxProducers, kMaxConsumers>
+    ::Producer::Push(size_t idx, const T& val) {
+  if (idx < kMaxConsumers) {
+    Queue* qptr = queue_vec[idx].load(std::memory_order_acquire);
+    if (qptr && qptr->Push(val))
+        return true;
+  }
   return false;
 }
 
-template <typename T>
-bool DispatchQueue<T>::_Producer::Push(size_t idx, T&& val) {
-  if (queue_vec[idx] && queue_vec[idx]->Push(std::move(val)))
-      return true;
+template <class T, size_t kMaxProducers, size_t kMaxConsumers>
+bool DispatchQueue<T, kMaxProducers, kMaxConsumers>
+    ::Producer::Push(size_t idx, T&& val) {
+  if (idx < kMaxConsumers) {
+    Queue* qptr = queue_vec[idx].load(std::memory_order_acquire);
+    if (qptr && qptr->Push(std::move(val)))
+        return true;
+  }
   return false;
 }
 
 ///////////////////////////////////////////////////////////////////
 
-template <typename T>
-class DispatchQueue<T>::_Consumer : public DispatchQueue<T>::InQueue {
+template <class T, size_t kMaxProducers, size_t kMaxConsumers>
+class DispatchQueue<T, kMaxProducers, kMaxConsumers>::Consumer
+    : public DispatchQueue<T, kMaxProducers, kMaxConsumers>::InQueue {
  public:
-  _Consumer(DispatchQueue<T>* dq)
-      : dispatch_queue_(dq), cur_index_(-1U)
-      , cur_index_read_cnt_(0) {
-    memset(queue_vec, 0, sizeof(queue_vec));
+  Consumer(DispatchQueue<T, kMaxProducers, kMaxConsumers>* dq)
+      : dispatch_queue_(dq), cur_index_(-1U),
+        cur_index_read_cnt_(0) {
+    for (auto& ap : queue_vec)
+      // std::atomic_init is not available in gcc-4.9
+      ap.store(nullptr, std::memory_order_relaxed);
   }
   bool Pop(T* ptr) override;
   bool PopWait(T* ptr, int timeout) override;
-  _Queue* queue_vec[kMaxProducers];
+
+  std::atomic<Queue*> queue_vec[kMaxProducers];
+
  private:
-  static const size_t kMaxStickyReadCnt = 32;
-  DispatchQueue<T>* dispatch_queue_;
+  static constexpr size_t kMaxStickyReadCnt = 32;
+  DispatchQueue<T, kMaxProducers, kMaxConsumers>* dispatch_queue_;
   size_t cur_index_;
   size_t cur_index_read_cnt_;
-  int epfd;
 };
 
-template <typename T>
-bool DispatchQueue<T>::_Consumer::Pop(T* ptr) {
+template <class T, size_t kMaxProducers, size_t kMaxConsumers>
+bool DispatchQueue<T, kMaxProducers, kMaxConsumers>
+    ::Consumer::Pop(T* ptr) {
   // sticky read for performance
   if (cur_index_read_cnt_ && cur_index_read_cnt_ < kMaxStickyReadCnt) {
-    if (queue_vec[cur_index_]->Pop(ptr)) {
+    Queue* qptr = queue_vec[cur_index_].load(std::memory_order_acquire);
+    if (qptr->Pop(ptr)) {
       cur_index_read_cnt_++;
       return true;
     }
@@ -175,14 +209,20 @@ bool DispatchQueue<T>::_Consumer::Pop(T* ptr) {
   cur_index_read_cnt_ = 0;
 
   size_t last_index = cur_index_;
-  for (cur_index_++; cur_index_ < kMaxProducers && queue_vec[cur_index_]; cur_index_++) {
-    if (queue_vec[cur_index_]->Pop(ptr)) {
+  for (cur_index_++; cur_index_ < kMaxProducers; cur_index_++) {
+    Queue* qptr = queue_vec[cur_index_].load(std::memory_order_acquire);
+    if (qptr == nullptr)
+      break;
+    if (qptr->Pop(ptr)) {
       cur_index_read_cnt_ = 1;
       return true;
     }
   }
-  for (cur_index_=0; cur_index_ <= last_index && queue_vec[cur_index_]; cur_index_++) {
-    if (queue_vec[cur_index_]->Pop(ptr)) {
+  for (cur_index_ = 0; cur_index_ <= last_index; cur_index_++) {
+    Queue* qptr = queue_vec[cur_index_].load(std::memory_order_acquire);
+    if (qptr == nullptr)
+      break;
+    if (qptr->Pop(ptr)) {
       cur_index_read_cnt_ = 1;
       return true;
     }
@@ -190,8 +230,9 @@ bool DispatchQueue<T>::_Consumer::Pop(T* ptr) {
   return false;
 }
 
-template <typename T>
-bool DispatchQueue<T>::_Consumer::PopWait(T* ptr, int timeout) {
+template <class T, size_t kMaxProducers, size_t kMaxConsumers>
+bool DispatchQueue<T, kMaxProducers, kMaxConsumers>
+    ::Consumer::PopWait(T* ptr, int timeout) {
   // naive impl now
   int sleep_ms = 0;
   while (!Pop(ptr)) {
@@ -205,61 +246,70 @@ bool DispatchQueue<T>::_Consumer::PopWait(T* ptr, int timeout) {
 
 ///////////////////////////////////////////////////////////////////
 
-template <typename T>
-DispatchQueue<T>::DispatchQueue(size_t qlen)
-  : qlen_(qlen), producer_count_(0), consumer_count_(0) {
-  memset(producers_, 0, sizeof(producers_));
-  memset(consumers_, 0, sizeof(consumers_));
+template <class T, size_t kMaxProducers, size_t kMaxConsumers>
+DispatchQueue<T, kMaxProducers, kMaxConsumers>::DispatchQueue(size_t qlen)
+    : qlen_(qlen), producer_count_(0), consumer_count_(0) {
+  // std::atomic_init is not available in gcc-4.9
+  for (auto& pr : producers_)
+    pr.store(nullptr, std::memory_order_relaxed);
+  for (auto& co : consumers_)
+    co.store(nullptr, std::memory_order_relaxed);
 }
 
-template <typename T>
-DispatchQueue<T>::~DispatchQueue() {
-  for (size_t i = 0; i < producer_count_; i++) {
-    for (size_t j = 0; j < consumer_count_; j++) {
-      delete producers_[i]->queue_vec[j];
+template <class T, size_t kMaxProducers, size_t kMaxConsumers>
+DispatchQueue<T, kMaxProducers, kMaxConsumers>::~DispatchQueue() {
+  for (size_t i = 0; i < producer_count_.load(); i++) {
+    for (size_t j = 0; j < consumer_count_.load(); j++) {
+      delete producers_[i].load()->queue_vec[j];
     }
-    delete producers_[i];
-    producers_[i] = NULL;
+    delete producers_[i].load();
+    producers_[i].store(nullptr);
   }
-  for (size_t j = 0; j < consumer_count_; j++) {
-    delete consumers_[j];
-    consumers_[j] = NULL;
+  for (size_t j = 0; j < consumer_count_.load(); j++) {
+    delete consumers_[j].load();
+    consumers_[j].store(nullptr);
   }
 }
 
-template <typename T>
-typename DispatchQueue<T>::OutQueue* DispatchQueue<T>::RegisterProducer() {
+template <class T, size_t kMaxProducers, size_t kMaxConsumers>
+typename DispatchQueue<T, kMaxProducers, kMaxConsumers>::OutQueue*
+DispatchQueue<T, kMaxProducers, kMaxConsumers>::RegisterProducer() {
   std::lock_guard<std::mutex> lock(mutex_);
 
-  if (producer_count_ >= kMaxProducers)
-    return NULL;
+  size_t producer_count = producer_count_.load(std::memory_order_relaxed);
+  if (producer_count >= kMaxProducers)
+    return nullptr;
 
-  _Producer* producer = new _Producer(this);
-  for (size_t i = 0; i < consumer_count_; i++) {
-    _Queue* queue = new _Queue(qlen_);
-    consumers_[i]->queue_vec[producer_count_] = queue;
+  Producer* producer = new Producer(this);
+  for (size_t i = 0; i < consumer_count_.load(std::memory_order_relaxed); i++) {
+    Consumer* consumer = consumers_[i].load(std::memory_order_relaxed);
+    Queue* queue = new Queue(qlen_);
+    consumer->queue_vec[producer_count] = queue;
     producer->queue_vec[i] = queue;
   }
-  producers_[producer_count_] = producer;
-  producer_count_++;
+  producers_[producer_count].store(producer, std::memory_order_release);
+  producer_count_.store(producer_count + 1, std::memory_order_release);
   return producer;
 }
 
-template <typename T>
-typename DispatchQueue<T>::InQueue* DispatchQueue<T>::RegisterConsumer() {
+template <class T, size_t kMaxProducers, size_t kMaxConsumers>
+typename DispatchQueue<T, kMaxProducers, kMaxConsumers>::InQueue*
+DispatchQueue<T, kMaxProducers, kMaxConsumers>::RegisterConsumer() {
   std::lock_guard<std::mutex> lock(mutex_);
 
-  if (consumer_count_ >= kMaxConsumers)
-    return NULL;
+  size_t consumer_count = consumer_count_.load(std::memory_order_relaxed);
+  if (consumer_count >= kMaxConsumers)
+    return nullptr;
 
-  _Consumer* consumer = new _Consumer(this);
-  for (size_t i = 0; i < producer_count_; i++) {
-    _Queue* queue = new _Queue(qlen_);
+  Consumer* consumer = new Consumer(this);
+  for (size_t i = 0; i < producer_count_.load(std::memory_order_relaxed); i++) {
+    Producer* producer = producers_[i].load(std::memory_order_relaxed);
+    Queue* queue = new Queue(qlen_);
     consumer->queue_vec[i] = queue;
-    producers_[i]->queue_vec[consumer_count_] = queue;
+    producer->queue_vec[consumer_count] = queue;
   }
-  consumers_[consumer_count_] = consumer;
-  consumer_count_++;
+  consumers_[consumer_count].store(consumer, std::memory_order_release);
+  consumer_count_.store(consumer_count + 1, std::memory_order_release);
   return consumer;
 }
 
