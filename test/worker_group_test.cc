@@ -10,13 +10,13 @@
 
 DECLARE_uint64(hz);
 
-class WorkerGroupTest : public testing::Test
-{
-protected:
+class WorkerGroupTest : public testing::Test {
+ protected:
   void SetUp() {
   }
   void TearDown() {
   }
+
   ccb::WorkerGroup worker_group_1_{2, QSIZE};
   ccb::WorkerGroup worker_group_2_{2, QSIZE};
   std::atomic_int val{0};
@@ -90,13 +90,13 @@ TEST_F(WorkerGroupTest, WorkerSelf) {
 
 TEST_F(WorkerGroupTest, WorkerTls) {
   worker_group_1_.PostTask(0, [] {
-      ccb::Worker::tls<int>()++;
+    ccb::Worker::tls<int>()++;
   });
   worker_group_1_.PostTask(0, [] {
-      ccb::Worker::tls<int>()++;
+    ccb::Worker::tls<int>()++;
   });
   worker_group_1_.PostTask(0, [this] {
-      val = ccb::Worker::tls<int>();
+    val = ccb::Worker::tls<int>();
   });
   usleep(20000);
   ASSERT_EQ(2, val);
@@ -109,4 +109,10 @@ PERF_TEST_F_OPT(WorkerGroupTest, PostTaskPerf, DEFAULT_HZ, DEFAULT_TIME) {
 PERF_TEST_F_OPT(WorkerGroupTest, PostSharedTaskPerf, DEFAULT_HZ, DEFAULT_TIME) {
   static ccb::ClosureFunc<void()> f{[]{}};
   ASSERT_TRUE(worker_group_1_.PostTask(f)) << PERF_ABORT;
+}
+
+PERF_TEST_F(WorkerGroupTest, SpawnThreadPostTask) {
+  std::thread([this] {
+    ASSERT_TRUE(worker_group_1_.PostTask([]{})) << PERF_ABORT;
+  }).join();
 }

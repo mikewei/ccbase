@@ -51,7 +51,7 @@ class Worker : public TimerWheel {
  public:
   ~Worker();
   static Worker* self() {
-    return tls_self;
+    return tls_self_;
   }
   template <class T> static T& tls() {
     static thread_local T tls_ctx;
@@ -77,7 +77,7 @@ class Worker : public TimerWheel {
   TaskQueue::InQueue* inq_;
   std::atomic_bool stop_flag_;
   std::thread thread_;
-  static thread_local Worker* tls_self;
+  static thread_local Worker* tls_self_;
   friend class WorkerGroup;
 };
 
@@ -112,16 +112,24 @@ class WorkerGroup {
                       size_t period_ms);
 
  private:
-  TaskQueue::OutQueue* GetOutQueue();
-
   CCB_NOT_COPYABLE_AND_MOVABLE(WorkerGroup);
+
+  TaskQueue::OutQueue* GetOutQueue();
+  static void UnregisterOutQueue(TaskQueue::OutQueue* outq);
+
+  struct QDeleter {
+    void operator()(TaskQueue::OutQueue* outq) {
+      outq->Unregister();
+    }
+  };
+  using QHolder = std::unique_ptr<TaskQueue::OutQueue, QDeleter>;
 
   TaskQueue queue_;
   std::vector<std::unique_ptr<Worker>> workers_;
-  static thread_local std::unordered_map<size_t, TaskQueue::OutQueue*> tls_producer_ctx;
-  static thread_local std::array<TaskQueue::OutQueue*, 64> tls_producer_ctx_cache_;
+  static thread_local std::unordered_map<size_t, QHolder> tls_producer_ctx_;
+  static thread_local std::array<QHolder, 64> tls_producer_ctx_cache_;
   size_t group_id_;
-  static std::atomic<size_t> s_next_group_id;
+  static std::atomic<size_t> s_next_group_id_;
 };
 
 }  // namespace ccb
