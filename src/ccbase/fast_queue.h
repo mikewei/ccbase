@@ -30,6 +30,7 @@
 #ifndef CCBASE_FAST_QUEUE_H_
 #define CCBASE_FAST_QUEUE_H_
 
+#include <atomic>
 #include <memory>
 #include <utility>
 #include "ccbase/eventfd.h"
@@ -47,49 +48,50 @@ class FastQueue {
   bool Push(T&& val);
   bool Pop(T* ptr);
   bool PopWait(T* ptr, int timeout = -1);
+
   size_t used_size() {
-    return (tail_ >= head_) ?
-      (tail_ - head_) : (tail_ + qlen_ - head_);
-  }
-  size_t free_size() {
-    return (head_ > tail_) ?
-      (head_ - 1 - tail_) : (head_ - 1 + qlen_ - tail_);
+    size_t head = head_.load(std::memory_order_acquire);
+    size_t tail = tail_.load(std::memory_order_acquire);
+    return (tail >= head) ?  (tail - head) : (tail + qlen_ - head);
   }
 
- protected:
-  void move_head() {
-    size_t head = head_ + 1;
-    if (head >= qlen_)
-      head -= qlen_;
-    head_ = head;
-  }
-  void move_tail() {
-    size_t tail = tail_ + 1;
-    if (tail >= qlen_)
-      tail -= qlen_;
-    tail_ = tail;
+  size_t free_size() {
+    size_t head = head_.load(std::memory_order_acquire);
+    size_t tail = tail_.load(std::memory_order_acquire);
+    return (head > tail) ?  (head - 1 - tail) : (head - 1 + qlen_ - tail);
   }
 
  private:
   CCB_NOT_COPYABLE_AND_MOVABLE(FastQueue);
 
+  void move_head() {
+    size_t head = head_.load(std::memory_order_relaxed) + 1;
+    if (head >= qlen_)
+      head -= qlen_;
+    head_.store(head, std::memory_order_release);
+  }
+  void move_tail() {
+    size_t tail = tail_.load(std::memory_order_relaxed) + 1;
+    if (tail >= qlen_)
+      tail -= qlen_;
+    tail_.store(tail, std::memory_order_release);
+  }
+
   size_t qlen_;
-  volatile size_t head_;
-  volatile size_t tail_;
-  T* array_;
+  std::atomic<size_t> head_;
+  std::atomic<size_t> tail_;
+  std::unique_ptr<T[]> array_;
   std::unique_ptr<EventFd> event_;
 };
 
 template <typename T, bool kEnableNotify>
 FastQueue<T, kEnableNotify>::FastQueue(size_t qlen)
-    : qlen_(qlen), head_(0), tail_(0)
-    , event_(new EventFd()) {
-  array_ = new T[qlen];
+    : qlen_(qlen), head_(0), tail_(0),
+      array_(new T[qlen]), event_(new EventFd()) {
 }
 
 template <typename T, bool kEnableNotify>
 FastQueue<T, kEnableNotify>::~FastQueue() {
-  delete[] array_;
 }
 
 template <typename T, bool kEnableNotify>
@@ -97,12 +99,11 @@ bool FastQueue<T, kEnableNotify>::Push(const T& val) {
   if (free_size() <= 0) {
     return false;
   }
-  array_[tail_] = val;
-  // StoreStore order is garanteed on X86
+  array_[tail_.load(std::memory_order_relaxed)] = val;
   move_tail();
   if (kEnableNotify) {
     // StoreLoad order require barrier
-    MemoryBarrier();
+    std::atomic_thread_fence(std::memory_order_seq_cst);
     if (used_size() == 1) {
       event_->Notify();
     }
@@ -115,12 +116,12 @@ bool FastQueue<T, kEnableNotify>::Push(T&& val) {
   if (free_size() <= 0) {
     return false;
   }
-  array_[tail_] = std::move(val);
-  // StoreStore order is garanteed on X86
+  array_[tail_.load(std::memory_order_relaxed)] = std::move(val);
   move_tail();
   if (kEnableNotify) {
-    // StoreLoad & global total order require barrier
-    MemoryBarrier();
+    // the memory fence garentees that the pushed node is visiable to all
+    // threads before checking condition of notification
+    std::atomic_thread_fence(std::memory_order_seq_cst);
     if (used_size() == 1) {
       event_->Notify();
     }
@@ -131,14 +132,15 @@ bool FastQueue<T, kEnableNotify>::Push(T&& val) {
 template <typename T, bool kEnableNotify>
 bool FastQueue<T, kEnableNotify>::Pop(T* ptr) {
   if (kEnableNotify) {
-    // StoreLoad & global total order require barrier
-    MemoryBarrier();
+    // the memory fence garentees that any previous pop is visible to all
+    // threads before checking new node, therefore if used_size > 1 is found
+    // when new node is pushed PopWait() will never miss it before blocking
+    std::atomic_thread_fence(std::memory_order_seq_cst);
   }
   if (used_size() <= 0) {
     return false;
   }
-  *ptr = std::move(array_[head_]);
-  // LoadStore order is garanteed on X86
+  *ptr = std::move(array_[head_.load(std::memory_order_relaxed)]);
   move_head();
   return true;
 }
