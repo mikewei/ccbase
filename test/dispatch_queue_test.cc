@@ -10,19 +10,56 @@
 
 DECLARE_uint64(hz);
 
-class DispatchQueueTest : public testing::Test
-{
-protected:
-  DispatchQueueTest() :
-    dispatch_queue_(QSIZE),
-    r1_count_(0),
-    r2_count_(0),
-    overflow_(0),
-       stop_(false),
-    err_found_(false) {}
+class DispatchQueueTest : public testing::Test {
+ protected:
+  DispatchQueueTest()
+      : dispatch_queue_(QSIZE) {}
+  void SetUp() {}
+  void TearDown() {}
+
+  ccb::DispatchQueue<int> dispatch_queue_;
+};
+
+TEST_F(DispatchQueueTest, UnregisterProducer) {
+  auto producer = dispatch_queue_.RegisterProducer();
+  auto consumer = dispatch_queue_.RegisterConsumer();
+  ASSERT_NE(nullptr, producer);
+  ASSERT_NE(nullptr, consumer);
+  producer->Push(1);
+  int val = 0;
+  consumer->Pop(&val);
+  ASSERT_EQ(1, val);
+  producer->Unregister();
+  producer = dispatch_queue_.RegisterProducer();
+  producer->Push(2);
+  consumer->Pop(&val);
+  ASSERT_EQ(2, val);
+}
+
+PERF_TEST_F(DispatchQueueTest, OneshotProducer) {
+  static auto producer = dispatch_queue_.RegisterProducer();
+  static auto consumer = dispatch_queue_.RegisterConsumer();
+  static int count = 0;
+  producer->Unregister();
+  producer = dispatch_queue_.RegisterProducer();
+  producer->Push(++count);
+  int val = 0;
+  consumer->Pop(&val);
+  ASSERT_EQ(count, val) << PERF_ABORT;
+}
+
+class DispatchQueuePerfTest : public testing::Test {
+ protected:
+  DispatchQueuePerfTest()
+      : dispatch_queue_(QSIZE),
+        r1_count_(0),
+        r2_count_(0),
+        overflow_(0),
+        stop_(false),
+        err_found_(false) {}
   void SetUp() {
-    r1_thread_ = std::thread(&DispatchQueueTest::ReadThread, this, 1);
-    r2_thread_ = std::thread(&DispatchQueueTest::ReadThread, this, 2);
+    r1_thread_ = std::thread(&DispatchQueuePerfTest::ReadThread, this, 1);
+    r2_thread_ = std::thread(&DispatchQueuePerfTest::ReadThread, this, 2);
     timer_thread_ = std::thread([this] {
       unsigned count = 0;
       while (!stop_.load(std::memory_order_relaxed)) {
@@ -31,7 +68,7 @@ protected:
       }
     });
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    w2_thread_ = std::thread(&DispatchQueueTest::WriteThread, this, 2);
+    w2_thread_ = std::thread(&DispatchQueuePerfTest::WriteThread, this, 2);
     std::cout << "producer thread #" << 1 << " start" << std::endl;
   }
   void TearDown() {
@@ -84,6 +121,7 @@ protected:
     std::cout << "r1_read " << r1_count_ << "/s  r2_read " << r2_count_ << "  overflow " <<  overflow_ << std::endl;
     r1_count_ = r2_count_ = overflow_ = 0;
   }
+
   ccb::DispatchQueue<int> dispatch_queue_;
   std::atomic<uint64_t> r1_count_;
   std::atomic<uint64_t> r2_count_;
@@ -96,7 +134,7 @@ protected:
   std::atomic_bool err_found_;
 };
 
-PERF_TEST_F_OPT(DispatchQueueTest, IO_Perf, DEFAULT_HZ, DEFAULT_TIME) {
+PERF_TEST_F_OPT(DispatchQueuePerfTest, IO_Perf, DEFAULT_HZ, DEFAULT_TIME) {
   static int val = 0;
   static auto q = dispatch_queue_.RegisterProducer();
   if (q->Push(val/2%2, val)) {
@@ -108,3 +146,5 @@ PERF_TEST_F_OPT(DispatchQueueTest, IO_Perf, DEFAULT_HZ, DEFAULT_TIME) {
     ASSERT_FALSE(err_found_.load(std::memory_order_relaxed)) << PERF_ABORT;
   }
 }
+
+
