@@ -31,6 +31,7 @@
 #include <mutex>
 #include <vector>
 #include <utility>
+#include <algorithm>
 #include "ccbase/timer_wheel.h"
 #include "ccbase/macro_list.h"
 
@@ -49,8 +50,6 @@ constexpr int kTimerFlagPeriod = 0x2;
 
 #define TIMER_WHEEL_NODE(head)  static_cast<TimerWheelNode*>(CCB_LIST_ENTRY(head, ListNode, list))
 
-//--------------------------------------------------------------------
-
 struct ListNode {
   ListHead list;
 };
@@ -61,8 +60,6 @@ struct TimerWheelNode : ListNode {
   ClosureFunc<void()> callback;
   uint8_t flags;
 };
-
-//--------------------------------------------------------------------
 
 struct TimerVecRoot {
   int index;
@@ -103,8 +100,6 @@ struct TimerWheelVecs {
   }
 };
 
-//--------------------------------------------------------------------
-
 class TimerWheelImpl : public std::enable_shared_from_this<TimerWheelImpl> {
  public:
   TimerWheelImpl(size_t us_per_tick, bool enable_lock);
@@ -134,7 +129,8 @@ class TimerWheelImpl : public std::enable_shared_from_this<TimerWheelImpl> {
   bool AddTimerNodeInLock(TimerWheelNode* node);
   void DelTimerNodeInLock(TimerWheelNode* node);
   void CascadeTimers(TimerVec* tv);
-  void PollTimerWheel(std::vector<ClosureFunc<void()>>* out);
+  void PollTimerWheel(std::vector<std::pair<TimerWheelNode*,
+                                            ClosureFunc<void()>>>* out);
   void InitTick();
   tick_t GetTickNow() const;
   tick_t ToTick(const struct timespec& ts) const;
@@ -162,7 +158,12 @@ class TimerWheelImpl : public std::enable_shared_from_this<TimerWheelImpl> {
   size_t timer_count_;
   tick_t tick_cur_;
   struct timespec ts_start_;
+  static thread_local bool tls_tracking_dead_nodes_;
+  static thread_local std::vector<TimerWheelNode*> tls_dead_nodes_;
 };
+
+thread_local bool TimerWheelImpl::tls_tracking_dead_nodes_{false};
+thread_local std::vector<TimerWheelNode*> TimerWheelImpl::tls_dead_nodes_;
 
 TimerWheelImpl::TimerWheelImpl(size_t us_per_tick, bool enable_lock)
     : us_per_tick_(us_per_tick)
@@ -272,16 +273,31 @@ void TimerWheelImpl::CascadeTimers(TimerVec* tv) {
 }
 
 void TimerWheelImpl::MoveOn() {
-  std::vector<ClosureFunc<void()>> cb_vec;
-  cb_vec.reserve(200);
+  thread_local std::vector<std::pair<TimerWheelNode*,
+                                     ClosureFunc<void()>>> cb_vec;
   PollTimerWheel(&cb_vec);
+  tls_tracking_dead_nodes_ = true;
   // run callback without lock
-  for (auto& callback : cb_vec) {
-    if (callback) callback();
+  for (auto& cb : cb_vec) {
+    TimerWheelNode* node = cb.first;
+    ClosureFunc<void()>& callback = cb.second;
+    if (node && !tls_dead_nodes_.empty() &&
+        std::find(tls_dead_nodes_.begin(), tls_dead_nodes_.end(), node)
+               != tls_dead_nodes_.end()) {
+      // the timer has been deleted by previous callbacks
+      continue;
+    }
+    if (callback) {
+      callback();
+    }
   }
+  tls_tracking_dead_nodes_ = false;
+  tls_dead_nodes_.clear();
+  cb_vec.clear();
 }
 
-void TimerWheelImpl::PollTimerWheel(std::vector<ClosureFunc<void()>>* out) {
+void TimerWheelImpl::PollTimerWheel(
+    std::vector<std::pair<TimerWheelNode*, ClosureFunc<void()>>>* out) {
   Locker lock(mutex_, enable_lock_);
 
   tick_t tick_to = GetTickNow();
@@ -305,18 +321,18 @@ void TimerWheelImpl::PollTimerWheel(std::vector<ClosureFunc<void()>>* out) {
       DelTimerNodeInLock(node);
       if (node->flags & kTimerFlagPeriod) {  // period timer
         // copy the callback closure
-        out->push_back(node->callback);
+        out->emplace_back(node, node->callback);
         // reschedule
         node->expire = tick_cur_ + node->timeout;
         AddTimerNodeInLock(node);
       } else {  // oneshot timer
         if (node->flags & kTimerFlagAutoDel) {
           // no owner, move the callback closure
-          out->push_back(std::move(node->callback));
+          out->emplace_back(nullptr, std::move(node->callback));
           delete node;
         } else {
           // has owner, copy the callback closure
-          out->push_back(node->callback);
+          out->emplace_back(node, node->callback);
         }
       }
     }
@@ -360,6 +376,9 @@ bool TimerWheelImpl::AddTimerNodeInLock(TimerWheelNode* node) {
 }
 
 inline void TimerWheelImpl::DelTimerNode(TimerWheelNode* node) {
+  if (tls_tracking_dead_nodes_) {
+    tls_dead_nodes_.push_back(node);
+  }
   Locker lock(mutex_, enable_lock_);
   DelTimerNodeInLock(node);
 }
@@ -403,7 +422,6 @@ tick_t TimerWheelImpl::ToTick(const struct timespec& ts) const {
   return us / us_per_tick_;
 }
 
-//--------------------------------------------------------------------
 
 TimerOwner::TimerOwner() {
 }
@@ -418,10 +436,9 @@ void TimerOwner::Cancel() {
   }
 }
 
-//--------------------------------------------------------------------
 
-TimerWheel::TimerWheel(size_t us_per_tick, bool enable_lock)
-  : pimpl_(std::make_shared<TimerWheelImpl>(us_per_tick, enable_lock)) {
+TimerWheel::TimerWheel(size_t us_per_tick, bool enable_lock_for_mt)
+  : pimpl_(std::make_shared<TimerWheelImpl>(us_per_tick, enable_lock_for_mt)) {
 }
 
 TimerWheel::~TimerWheel() {

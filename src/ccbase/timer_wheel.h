@@ -44,7 +44,8 @@ using tick_t = uint64_t;
 
 class TimerWheel {
  public:
-  explicit TimerWheel(size_t us_per_tick = 1000, bool enable_lock = true);
+  explicit TimerWheel(size_t us_per_tick = 1000,
+                      bool enable_lock_for_mt = true);
   ~TimerWheel();
 
   bool AddTimer(tick_t timeout,

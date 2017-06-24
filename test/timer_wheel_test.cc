@@ -191,6 +191,21 @@ TEST_F(TimerWheelTest, GetCurrentTick) {
   ASSERT_LT(init_tick, last_tick);
 }
 
+TEST_F(TimerWheelTest, DeleteNodeTrackingTest) {
+  int check = 0;
+  ccb::TimerOwner* to = new ccb::TimerOwner;
+  tw_.AddTimer(0, [&check, to] {
+    check++;
+    delete to;
+  });
+  tw_.AddTimer(0, [&check] {
+    check++;
+  }, to);
+  EXPECT_EQ(2UL, tw_.GetTimerCount());
+  tw_.MoveOn();
+  ASSERT_EQ(1, check);
+}
+
 PERF_TEST_F(TimerWheelTest, AddTimerPerf) {
   timers_++;
   tw_.AddTimer(1, [this]{
