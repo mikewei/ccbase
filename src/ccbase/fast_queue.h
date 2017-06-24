@@ -34,7 +34,6 @@
 #include <memory>
 #include <utility>
 #include "ccbase/eventfd.h"
-#include "ccbase/memory.h"
 #include "ccbase/common.h"
 
 namespace ccb {
