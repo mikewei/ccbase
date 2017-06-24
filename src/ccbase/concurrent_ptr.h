@@ -27,10 +27,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef CCBASE_CONCURRENT_PTR_
-#define CCBASE_CONCURRENT_PTR_
+#ifndef CCBASE_CONCURRENT_PTR_H_
+#define CCBASE_CONCURRENT_PTR_H_
 
 #include <memory>
+#include <utility>
 #include "ccbase/common.h"
 #include "ccbase/memory_reclamation.h"
 
@@ -42,28 +43,28 @@ struct ConcurrentPtrScope {};
 template <class ConcurrentPtrType>
 class ConcurrentPtrReader {
  public:
-   ConcurrentPtrReader(const ConcurrentPtrType* cp)
-       : cp_(cp) {
-     ptr_ = cp->ReadLock();
-   }
+  explicit ConcurrentPtrReader(const ConcurrentPtrType* cp)
+      : cp_(cp) {
+    ptr_ = cp->ReadLock();
+  }
 
-   ~ConcurrentPtrReader() {
-     cp_->ReadUnlock();
-   }
+  ~ConcurrentPtrReader() {
+    cp_->ReadUnlock();
+  }
 
-   typename ConcurrentPtrType::PtrType get() const {
-     return ptr_;
-   }
+  typename ConcurrentPtrType::PtrType get() const {
+    return ptr_;
+  }
 
-   typename ConcurrentPtrType::PtrType operator->() const {
-     return get();
-   }
+  typename ConcurrentPtrType::PtrType operator->() const {
+    return get();
+  }
 
  private:
-   CCB_NOT_COPYABLE_AND_MOVABLE(ConcurrentPtrReader);
+  CCB_NOT_COPYABLE_AND_MOVABLE(ConcurrentPtrReader);
 
-   const ConcurrentPtrType* cp_;
-   typename ConcurrentPtrType::PtrType ptr_;
+  const ConcurrentPtrType* cp_;
+  typename ConcurrentPtrType::PtrType ptr_;
 };
 
 
@@ -78,10 +79,10 @@ class ConcurrentPtr {
   ConcurrentPtr()
       : ptr_(nullptr) {}
 
-  ConcurrentPtr(std::nullptr_t)
+  explicit ConcurrentPtr(std::nullptr_t)
       : ptr_(nullptr) {}
 
-  ConcurrentPtr(T* ptr)
+  explicit ConcurrentPtr(T* ptr)
       : ptr_(ptr) {}
 
   /* Destructor
@@ -136,13 +137,13 @@ class ConcurrentSharedPtr
   ConcurrentSharedPtr()
       : Base(new std::shared_ptr<T>(nullptr, Deleter())) {}
 
-  ConcurrentSharedPtr(std::nullptr_t)
+  explicit ConcurrentSharedPtr(std::nullptr_t)
       : Base(new std::shared_ptr<T>(nullptr, Deleter())) {}
 
-  ConcurrentSharedPtr(T* ptr)
+  explicit ConcurrentSharedPtr(T* ptr)
       : Base(new std::shared_ptr<T>(ptr, Deleter())) {}
 
-  ConcurrentSharedPtr(std::shared_ptr<T> shptr)
+  explicit ConcurrentSharedPtr(std::shared_ptr<T> shptr)
       : Base(new std::shared_ptr<T>(std::move(shptr))) {}
 
   ~ConcurrentSharedPtr() {}
@@ -174,4 +175,4 @@ class ConcurrentSharedPtr
 
 }  // namespace ccb
 
-#endif  // CCBASE_CONCURRENT_PTR_
+#endif  // CCBASE_CONCURRENT_PTR_H_

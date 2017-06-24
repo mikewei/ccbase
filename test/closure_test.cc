@@ -1,10 +1,38 @@
+/* Copyright (c) 2012-2017, Bin Wei <bin@vip.qq.com>
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ * 
+ *     * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ * copyright notice, this list of conditions and the following disclaimer
+ * in the documentation and/or other materials provided with the
+ * distribution.
+ *     * The names of its contributors may not be used to endorse or 
+ * promote products derived from this software without specific prior 
+ * written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 #include <functional>
 #include "gtestx/gtestx.h"
 #include "ccbase/closure.h"
 
-class ClosureTest : public testing::Test
-{
-public:
+class ClosureTest : public testing::Test {
+ public:
   ClosureTest() {
   }
   void SetUp() {
@@ -31,8 +59,7 @@ public:
   static int n;
 };
 
-class ClosureFuncTest : public ClosureTest
-{
+class ClosureFuncTest : public ClosureTest {
 };
 
 int ClosureTest::n = 0;
@@ -42,29 +69,41 @@ TEST_F(ClosureTest, Run) {
   // NewClosure
   ccb::internal::NewClosure(ClosureTest::Function)->Run();
   ASSERT_EQ(++expect, n);
-  ccb::internal::NewClosure(static_cast<ClosureTest*>(this), &ClosureTest::Method)->Run();
+  ccb::internal::NewClosure(static_cast<ClosureTest*>(this),
+                            &ClosureTest::Method)->Run();
   ASSERT_EQ(++expect, n);
-  ccb::internal::NewClosure(static_cast<ClosureTest*>(this), &ClosureTest::Method_Args, 1)->Run(-1);
+  ccb::internal::NewClosure(static_cast<ClosureTest*>(this),
+                            &ClosureTest::Method_Args, 1)->Run(-1);
   ASSERT_EQ(++expect, n);
   ccb::internal::NewClosure(Functor())->Run();
   ASSERT_EQ(++expect, n);
   ccb::internal::NewClosure([]{ClosureTest::n++;})->Run();
   ASSERT_EQ(++expect, n);
-  ccb::internal::NewClosure(std::bind(&ClosureTest::Method, static_cast<ClosureTest*>(this)))->Run();
+  ccb::internal::NewClosure(std::bind(&ClosureTest::Method,
+                                      static_cast<ClosureTest*>(this)))->Run();
   ASSERT_EQ(++expect, n);
   // NewPermanentClosure
   ccb::internal::Closure<void()>* ptr;
-  (ptr = ccb::internal::NewPermanentClosure(ClosureTest::Function))->Run(); delete ptr;
+  (ptr = ccb::internal::NewPermanentClosure(ClosureTest::Function))->Run();
+  delete ptr;
   ASSERT_EQ(++expect, n);
-  (ptr = ccb::internal::NewPermanentClosure(static_cast<ClosureTest*>(this), &ClosureTest::Method))->Run(); delete ptr;
+  (ptr = ccb::internal::NewPermanentClosure(static_cast<ClosureTest*>(this),
+                                            &ClosureTest::Method))->Run();
+  delete ptr;
   ASSERT_EQ(++expect, n);
-  (ptr = ccb::internal::NewPermanentClosure(static_cast<ClosureTest*>(this), &ClosureTest::Method_Args, 1, -1))->Run(); delete ptr;
+  (ptr = ccb::internal::NewPermanentClosure(static_cast<ClosureTest*>(this),
+                                            &ClosureTest::Method_Args, 1, -1))->Run();
+  delete ptr;
   ASSERT_EQ(++expect, n);
-  (ptr = ccb::internal::NewPermanentClosure(Functor()))->Run(); delete ptr;
+  (ptr = ccb::internal::NewPermanentClosure(Functor()))->Run();
+  delete ptr;
   ASSERT_EQ(++expect, n);
-  (ptr = ccb::internal::NewPermanentClosure([]{ClosureTest::n++;}))->Run(); delete ptr;
+  (ptr = ccb::internal::NewPermanentClosure([]{ClosureTest::n++;}))->Run();
+  delete ptr;
   ASSERT_EQ(++expect, n);
-  (ptr = ccb::internal::NewPermanentClosure(std::bind(&ClosureTest::Method, static_cast<ClosureTest*>(this))))->Run(); delete ptr;
+  (ptr = ccb::internal::NewPermanentClosure(std::bind(&ClosureTest::Method,
+                                                      static_cast<ClosureTest*>(this))))->Run();
+  delete ptr;
   ASSERT_EQ(++expect, n);
 }
 
@@ -80,7 +119,8 @@ TEST_F(ClosureTest, Clone) {
   ptr->Run();
   ASSERT_EQ(++++expect, n);
   // NewPermanentClosure
-  ptr = ccb::internal::NewPermanentClosure(static_cast<ClosureTest*>(this), &ClosureTest::Method_Args, 1, -1);
+  ptr = ccb::internal::NewPermanentClosure(static_cast<ClosureTest*>(this),
+                                           &ClosureTest::Method_Args, 1, -1);
   ptr2 = ptr->Clone();
   ptr->Run(); delete ptr;
   ptr2->Run(); delete ptr2;
@@ -88,7 +128,8 @@ TEST_F(ClosureTest, Clone) {
 }
 
 PERF_TEST_F(ClosureTest, Perf) {
-  ccb::internal::NewClosure(static_cast<ClosureTest*>(this), &ClosureTest::Method_Args, 1)->Run(-1);
+  ccb::internal::NewClosure(static_cast<ClosureTest*>(this),
+                            &ClosureTest::Method_Args, 1)->Run(-1);
 }
 
 TEST_F(ClosureFuncTest, Run) {
@@ -169,7 +210,7 @@ TEST_F(ClosureFuncTest, CopyMove) {
 }
 
 PERF_TEST_F(ClosureFuncTest, NewCall) {
-  ccb::ClosureFunc<void()>{[]{}}();
+  ccb::ClosureFunc<void()>{[] {}}();
 }
 
 PERF_TEST_F(ClosureFuncTest, NewMoveCall) {
