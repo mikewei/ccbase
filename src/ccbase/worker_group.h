@@ -115,20 +115,31 @@ class WorkerGroup {
   CCB_NOT_COPYABLE_AND_MOVABLE(WorkerGroup);
 
   TaskQueue::OutQueue* GetOutQueue();
-  static void UnregisterOutQueue(TaskQueue::OutQueue* outq);
 
-  struct QDeleter {
-    void operator()(TaskQueue::OutQueue* outq) {
-      outq->Unregister();
+  struct ClientContext {
+    std::shared_ptr<TaskQueue> queue_holder;
+    TaskQueue::OutQueue* out_queue;
+
+    ClientContext()
+        : queue_holder(nullptr), out_queue(nullptr) {}
+    ~ClientContext() {
+      if (out_queue) {
+        out_queue->Unregister();
+      }
+    }
+    operator bool() const {
+      return out_queue;
     }
   };
-  using QHolder = std::unique_ptr<TaskQueue::OutQueue, QDeleter>;
+  static constexpr size_t kClientCtxCacheSize = 64;
 
-  TaskQueue queue_;
-  std::vector<std::unique_ptr<Worker>> workers_;
-  static thread_local std::unordered_map<size_t, QHolder> tls_producer_ctx_;
-  static thread_local std::array<QHolder, 64> tls_producer_ctx_cache_;
   size_t group_id_;
+  std::shared_ptr<TaskQueue> queue_;
+  std::vector<std::unique_ptr<Worker>> workers_;
+  static thread_local std::unordered_map<size_t,
+                                         ClientContext> tls_client_ctx_;
+  static thread_local std::array<ClientContext,
+                                 kClientCtxCacheSize> tls_client_ctx_cache_;
   static std::atomic<size_t> s_next_group_id_;
 };
 

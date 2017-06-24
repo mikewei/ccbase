@@ -76,19 +76,20 @@ void Worker::BatchProcessTasks(size_t max) {
 }
 
 
-thread_local std::unordered_map<size_t, WorkerGroup::QHolder>
-WorkerGroup::tls_producer_ctx_{100};
+thread_local std::unordered_map<size_t, WorkerGroup::ClientContext>
+WorkerGroup::tls_client_ctx_{100};
 
-thread_local std::array<WorkerGroup::QHolder, 64>
-WorkerGroup::tls_producer_ctx_cache_;
+thread_local std::array<WorkerGroup::ClientContext,
+                        WorkerGroup::kClientCtxCacheSize>
+WorkerGroup::tls_client_ctx_cache_;
 
 std::atomic<size_t> WorkerGroup::s_next_group_id_{0};
 
 WorkerGroup::WorkerGroup(size_t worker_num, size_t queue_size)
-    : queue_(queue_size) {
+    : queue_(std::make_shared<TaskQueue>(queue_size)) {
   group_id_ = s_next_group_id_.fetch_add(1);
   for (size_t id = 0; id < worker_num; id++) {
-    workers_.emplace_back(new Worker(this, id, queue_.RegisterConsumer()));
+    workers_.emplace_back(new Worker(this, id, queue_->RegisterConsumer()));
   }
 }
 
@@ -97,13 +98,14 @@ WorkerGroup::~WorkerGroup() {
 
 
 TaskQueue::OutQueue* WorkerGroup::GetOutQueue() {
-  auto& outq = group_id_ < tls_producer_ctx_cache_.size()
-                ? tls_producer_ctx_cache_[group_id_]
-                : tls_producer_ctx_[group_id_];
-  if (!outq) {
-    outq.reset(queue_.RegisterProducer());
+  auto& client_ctx = group_id_ < tls_client_ctx_cache_.size()
+                       ? tls_client_ctx_cache_[group_id_]
+                       : tls_client_ctx_[group_id_];
+  if (!client_ctx) {
+    client_ctx.queue_holder = queue_;
+    client_ctx.out_queue = queue_->RegisterProducer();
   }
-  return outq.get();
+  return client_ctx.out_queue;
 }
 
 bool WorkerGroup::PostTask(ClosureFunc<void()> func) {

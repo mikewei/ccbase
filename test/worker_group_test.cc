@@ -116,3 +116,8 @@ PERF_TEST_F(WorkerGroupTest, SpawnThreadPostTask) {
     ASSERT_TRUE(worker_group_1_.PostTask([]{})) << PERF_ABORT;
   }).join();
 }
+
+TEST(WorkerGroupDtorTest, DestructBeforeThreadExit) {
+  ccb::WorkerGroup worker_group{1, QSIZE};
+  worker_group.PostTask([]{});
+}

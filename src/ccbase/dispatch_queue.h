@@ -87,7 +87,6 @@ class DispatchQueue {
   std::vector<size_t> reclaimed_producers_;
 };
 
-///////////////////////////////////////////////////////////////////
 
 template <class T, size_t kMaxProducers, size_t kMaxConsumers>
 class DispatchQueue<T, kMaxProducers, kMaxConsumers>::Producer
@@ -201,7 +200,6 @@ void DispatchQueue<T, kMaxProducers, kMaxConsumers>
   dispatch_queue_->UnregisterProducer(this);
 }
 
-///////////////////////////////////////////////////////////////////
 
 template <class T, size_t kMaxProducers, size_t kMaxConsumers>
 class DispatchQueue<T, kMaxProducers, kMaxConsumers>::Consumer
@@ -276,7 +274,6 @@ bool DispatchQueue<T, kMaxProducers, kMaxConsumers>
   return true;
 }
 
-///////////////////////////////////////////////////////////////////
 
 template <class T, size_t kMaxProducers, size_t kMaxConsumers>
 DispatchQueue<T, kMaxProducers, kMaxConsumers>::DispatchQueue(size_t qlen)
