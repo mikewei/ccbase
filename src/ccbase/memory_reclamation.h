@@ -352,7 +352,7 @@ class HazardPtrReclamation {
     static thread_local std::vector<T*> hazard_ptr_vec;
     hazard_ptr_vec.clear();
     // collect and sort hazard-pointers
-    state_list_.Travel([&hazard_ptr_vec](ThreadState* state) {
+    state_list_.Travel([](ThreadState* state) {
       for (auto& hp : state->reader_state.hazard_ptrs) {
         T* ptr = hp.load(std::memory_order_seq_cst);
         if (ptr) hazard_ptr_vec.push_back(ptr);
