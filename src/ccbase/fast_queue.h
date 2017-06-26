@@ -76,21 +76,25 @@ class FastQueue {
     tail_.store(tail, std::memory_order_release);
   }
 
+  using Slot = typename std::aligned_storage<sizeof(T), alignof(T)>::type;
+
   size_t qlen_;
   std::atomic<size_t> head_;
   std::atomic<size_t> tail_;
-  std::unique_ptr<T[]> array_;
+  std::unique_ptr<Slot[]> array_;
   std::unique_ptr<EventFd> event_;
 };
 
 template <typename T, bool kEnableNotify>
 FastQueue<T, kEnableNotify>::FastQueue(size_t qlen)
     : qlen_(qlen), head_(0), tail_(0),
-      array_(new T[qlen]), event_(new EventFd()) {
+      array_(new Slot[qlen]),
+      event_(kEnableNotify ? new EventFd() : nullptr) {
 }
 
 template <typename T, bool kEnableNotify>
 FastQueue<T, kEnableNotify>::~FastQueue() {
+  while (Pop(nullptr)) {}
 }
 
 template <typename T, bool kEnableNotify>
@@ -98,7 +102,7 @@ bool FastQueue<T, kEnableNotify>::Push(const T& val) {
   if (free_size() <= 0) {
     return false;
   }
-  array_[tail_.load(std::memory_order_relaxed)] = val;
+  new (&array_[tail_.load(std::memory_order_relaxed)]) T(val);
   move_tail();
   if (kEnableNotify) {
     // StoreLoad order require barrier
@@ -115,7 +119,7 @@ bool FastQueue<T, kEnableNotify>::Push(T&& val) {
   if (free_size() <= 0) {
     return false;
   }
-  array_[tail_.load(std::memory_order_relaxed)] = std::move(val);
+  new (&array_[tail_.load(std::memory_order_relaxed)]) T(std::move(val));
   move_tail();
   if (kEnableNotify) {
     // the memory fence garentees that the pushed node is visiable to all
@@ -139,7 +143,10 @@ bool FastQueue<T, kEnableNotify>::Pop(T* ptr) {
   if (used_size() <= 0) {
     return false;
   }
-  *ptr = std::move(array_[head_.load(std::memory_order_relaxed)]);
+  T* head_slot = reinterpret_cast<T*>(
+                   &array_[head_.load(std::memory_order_relaxed)]);
+  if (ptr) *ptr = std::move(*head_slot);
+  head_slot->~T();
   move_head();
   return true;
 }
