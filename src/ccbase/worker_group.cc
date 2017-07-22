@@ -34,13 +34,38 @@
 
 namespace ccb {
 
+namespace {
+
+constexpr size_t kMaxBatchProcessTasks = 16;
+constexpr size_t kPollerTimeoutMs = 1;
+
+class DefaultWorkerPoller : public WorkerPoller {
+ public:
+  virtual ~DefaultWorkerPoller() {}
+  void Poll(size_t timeout_ms) override {
+    if (timeout_ms > 0) {
+      usleep(timeout_ms * 1000);
+    }
+  }
+  static std::shared_ptr<DefaultWorkerPoller> Instance() {
+    static std::shared_ptr<DefaultWorkerPoller> instance_{
+      new DefaultWorkerPoller
+    };
+    return instance_;
+  }
+};
+
+}  // namespace
+
 thread_local Worker* Worker::tls_self_ = nullptr;
 
-Worker::Worker(WorkerGroup* grp, size_t id, TaskQueue::InQueue* q)
+Worker::Worker(WorkerGroup* grp, size_t id, TaskQueue::InQueue* q,
+               std::shared_ptr<WorkerPoller> poller)
     : TimerWheel(1000, false),
       group_(grp),
       id_(id),
       inq_(q),
+      poller_(std::move(poller)),
       stop_flag_(false) {
   char name[16];
   snprintf(name, sizeof(name), "w%lu-%lu", grp->id(), id);
@@ -48,7 +73,7 @@ Worker::Worker(WorkerGroup* grp, size_t id, TaskQueue::InQueue* q)
 }
 
 Worker::~Worker() {
-  stop_flag_ = true;
+  stop_flag_.store(true, std::memory_order_relaxed);
   thread_.join();
 }
 
@@ -58,26 +83,27 @@ bool Worker::PostTask(ClosureFunc<void()> func) {
 
 void Worker::WorkerMainEntry() {
   tls_self_ = this;
-  while (!stop_flag_) {
+  while (!stop_flag_.load(std::memory_order_relaxed)) {
     TimerWheel::MoveOn();
-    BatchProcessTasks(50);
+    size_t n = BatchProcessTasks(kMaxBatchProcessTasks);
+    poller_->Poll(n < kMaxBatchProcessTasks ? kPollerTimeoutMs : 0);
   }
 }
 
-void Worker::BatchProcessTasks(size_t max) {
-  for (size_t cnt = 0; cnt < max ; cnt++) {
+size_t Worker::BatchProcessTasks(size_t max) {
+  size_t cnt;
+  for (cnt = 0; cnt < max ; cnt++) {
     ClosureFunc<void()> func;
     if (!inq_->Pop(&func)) {
-      if (inq_->PopWait(&func, 1)) func();
       break;
     }
     func();
   }
+  return cnt;
 }
 
-
 thread_local std::unordered_map<size_t, WorkerGroup::ClientContext>
-WorkerGroup::tls_client_ctx_{100};
+WorkerGroup::tls_client_ctx_{128};
 
 thread_local std::array<WorkerGroup::ClientContext,
                         WorkerGroup::kClientCtxCacheSize>
@@ -86,10 +112,18 @@ WorkerGroup::tls_client_ctx_cache_;
 std::atomic<size_t> WorkerGroup::s_next_group_id_{0};
 
 WorkerGroup::WorkerGroup(size_t worker_num, size_t queue_size)
+    : WorkerGroup(worker_num, queue_size, [](size_t) {
+        return DefaultWorkerPoller::Instance();
+      }) {
+}
+
+WorkerGroup::WorkerGroup(size_t worker_num, size_t queue_size,
+                         WorkerPollerSupplier poller_supplier)
     : queue_(std::make_shared<TaskQueue>(queue_size)) {
   group_id_ = s_next_group_id_.fetch_add(1);
   for (size_t id = 0; id < worker_num; id++) {
-    workers_.emplace_back(new Worker(this, id, queue_->RegisterConsumer()));
+    workers_.emplace_back(new Worker(this, id, queue_->RegisterConsumer(),
+                                     poller_supplier(id)));
   }
 }
 

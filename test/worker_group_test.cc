@@ -131,6 +131,22 @@ TEST_F(WorkerGroupTest, WorkerTls) {
   ASSERT_EQ(2, val);
 }
 
+TEST_F(WorkerGroupTest, WorkerPoller) {
+  ccb::WorkerPoller* poller1 = nullptr;
+  ccb::WorkerPoller* poller2 = nullptr;
+  worker_group_1_.PostTask(0, [&poller1] {
+    poller1 = ccb::Worker::self()->poller();
+    poller1->Poll(0);
+  });
+  worker_group_1_.PostTask(1, [&poller2] {
+    poller2 = ccb::Worker::self()->poller();
+    poller2->Poll(0);
+  });
+  usleep(20000);
+  ASSERT_NE(nullptr, poller1);
+  ASSERT_EQ(poller1, poller2);
+}
+
 PERF_TEST_F_OPT(WorkerGroupTest, PostTaskPerf, DEFAULT_HZ, DEFAULT_TIME) {
   ASSERT_TRUE(worker_group_1_.PostTask([]{})) << PERF_ABORT;
 }
