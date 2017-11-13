@@ -10,6 +10,7 @@ cc_library(
   ],
   linkopts = [
     "-lrt",
+    "-pthread",
   ],
   nocopts = "-fPIC",
   linkstatic = 1,
