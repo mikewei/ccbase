@@ -30,85 +30,79 @@
 #ifndef CCBASE_WORKER_GROUP_H_
 #define CCBASE_WORKER_GROUP_H_
 
-#include <array>
 #include <thread>
 #include <atomic>
 #include <memory>
-#include <unordered_map>
 #include <vector>
 #include "ccbase/common.h"
 #include "ccbase/closure.h"
 #include "ccbase/timer_wheel.h"
 #include "ccbase/dispatch_queue.h"
+#include "ccbase/thread_local_obj.h"
 
 namespace ccb {
 
-using TaskQueue = DispatchQueue<ClosureFunc<void()>>;
-
-class WorkerGroup;
-
-class WorkerPoller {
- public:
-  virtual ~WorkerPoller() {}
-  // if timeout_ms is 0 the Poll call must be non-blocking
-  virtual void Poll(size_t timeout_ms) = 0;
-};
-using WorkerPollerSupplier =
-    ClosureFunc<std::shared_ptr<WorkerPoller>(size_t worker_id)>;
-
-class Worker : public TimerWheel {
- public:
-  ~Worker();
-  static Worker* self() {
-    return tls_self_;
-  }
-  template <class T> static T& tls() {
-    static thread_local T tls_ctx;
-    return tls_ctx;
-  }
-  size_t id() const {
-    return id_;
-  }
-  WorkerGroup* worker_group() const {
-    return group_;
-  }
-  WorkerPoller* poller() const {
-    return poller_.get();
-  }
-  bool PostTask(ClosureFunc<void()> func);
-
- private:
-  CCB_NOT_COPYABLE_AND_MOVABLE(Worker);
-
-  Worker(WorkerGroup* grp, size_t id, TaskQueue::InQueue* q,
-         std::shared_ptr<WorkerPoller> poller);
-  void WorkerMainEntry();
-  size_t BatchProcessTasks(size_t max);
-
-  WorkerGroup* group_;
-  size_t id_;
-  TaskQueue::InQueue* inq_;
-  std::shared_ptr<WorkerPoller> poller_;
-  std::atomic_bool stop_flag_;
-  std::thread thread_;
-  static thread_local Worker* tls_self_;
-  friend class WorkerGroup;
-};
-
 class WorkerGroup {
+ public:
+  using TaskQueue = DispatchQueue<ClosureFunc<void()>>;
+
+  class Poller {
+   public:
+    virtual ~Poller() {}
+    // if timeout_ms is 0 the Poll call must be non-blocking
+    virtual void Poll(size_t timeout_ms) = 0;
+  };
+  using PollerSupplier = ClosureFunc<std::shared_ptr<Poller>(size_t worker_id)>;
+
+  class Worker : public TimerWheel {
+   public:
+    ~Worker();
+    static Worker* self() {
+      return tls_self_;
+    }
+    template <class T> static T& tls() {
+      static thread_local T tls_ctx;
+      return tls_ctx;
+    }
+    size_t id() const {
+      return id_;
+    }
+    WorkerGroup* worker_group() const {
+      return group_;
+    }
+    Poller* poller() const {
+      return poller_.get();
+    }
+    bool PostTask(ClosureFunc<void()> func);
+
+   private:
+    CCB_NOT_COPYABLE_AND_MOVABLE(Worker);
+
+    Worker(WorkerGroup* grp, size_t id, TaskQueue::InQueue* q,
+           std::shared_ptr<Poller> poller);
+    void WorkerMainEntry();
+    size_t BatchProcessTasks(size_t max);
+
+    WorkerGroup* group_;
+    size_t id_;
+    TaskQueue::InQueue* inq_;
+    std::shared_ptr<Poller> poller_;
+    std::atomic_bool stop_flag_;
+    std::thread thread_;
+    static thread_local Worker* tls_self_;
+    friend class WorkerGroup;
+  };
+
  public:
   WorkerGroup(size_t worker_num, size_t queue_size);
   WorkerGroup(size_t worker_num, size_t queue_size,
-              WorkerPollerSupplier poller_supplier);
+              PollerSupplier poller_supplier);
   ~WorkerGroup();
   size_t id() const {
-    return group_id_;
+    return tls_client_ctx_.instance_id();
   }
   size_t size() const {
     return workers_.size();
-  }
-  size_t GroupSize() const {
-    return size();
   }
   bool is_current_thread() {
     Worker* worker = Worker::self();
@@ -147,16 +141,10 @@ class WorkerGroup {
       return out_queue;
     }
   };
-  static constexpr size_t kClientCtxCacheSize = 64;
 
-  size_t group_id_;
   std::shared_ptr<TaskQueue> queue_;
   std::vector<std::unique_ptr<Worker>> workers_;
-  static thread_local std::unordered_map<size_t,
-                                         ClientContext> tls_client_ctx_;
-  static thread_local std::array<ClientContext,
-                                 kClientCtxCacheSize> tls_client_ctx_cache_;
-  static std::atomic<size_t> s_next_group_id_;
+  ThreadLocalObj<ClientContext> tls_client_ctx_;
 };
 
 }  // namespace ccb
