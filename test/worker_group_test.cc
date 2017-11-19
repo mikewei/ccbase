@@ -39,6 +39,8 @@
 
 DECLARE_uint64(hz);
 
+using Worker = ccb::WorkerGroup::Worker;
+
 class WorkerGroupTest : public testing::Test {
  protected:
   void SetUp() {
@@ -109,7 +111,7 @@ TEST_F(WorkerGroupTest, PostPeriodTask) {
 TEST_F(WorkerGroupTest, WorkerSelf) {
   worker_group_1_.PostTask([this] {
     val++;
-    ccb::Worker::self()->PostTask([this] {
+    Worker::self()->PostTask([this] {
       val++;
     });
   });
@@ -119,27 +121,27 @@ TEST_F(WorkerGroupTest, WorkerSelf) {
 
 TEST_F(WorkerGroupTest, WorkerTls) {
   worker_group_1_.PostTask(0, [] {
-    ccb::Worker::tls<int>()++;
+    Worker::tls<int>()++;
   });
   worker_group_1_.PostTask(0, [] {
-    ccb::Worker::tls<int>()++;
+    Worker::tls<int>()++;
   });
   worker_group_1_.PostTask(0, [this] {
-    val = ccb::Worker::tls<int>();
+    val = Worker::tls<int>();
   });
   usleep(20000);
   ASSERT_EQ(2, val);
 }
 
 TEST_F(WorkerGroupTest, WorkerPoller) {
-  ccb::WorkerPoller* poller1 = nullptr;
-  ccb::WorkerPoller* poller2 = nullptr;
+  ccb::WorkerGroup::Poller* poller1 = nullptr;
+  ccb::WorkerGroup::Poller* poller2 = nullptr;
   worker_group_1_.PostTask(0, [&poller1] {
-    poller1 = ccb::Worker::self()->poller();
+    poller1 = Worker::self()->poller();
     poller1->Poll(0);
   });
   worker_group_1_.PostTask(1, [&poller2] {
-    poller2 = ccb::Worker::self()->poller();
+    poller2 = Worker::self()->poller();
     poller2->Poll(0);
   });
   usleep(20000);
