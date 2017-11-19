@@ -29,6 +29,7 @@
  */
 #include <time.h>
 #include <mutex>
+#include <atomic>
 #include <vector>
 #include <utility>
 #include <algorithm>
@@ -45,7 +46,7 @@
 
 namespace ccb {
 
-constexpr int kTimerFlagAutoDel = 0x1;
+constexpr int kTimerFlagHasOwner = 0x1;
 constexpr int kTimerFlagPeriod = 0x2;
 
 #define TIMER_WHEEL_NODE(head)  static_cast<TimerWheelNode*>(CCB_LIST_ENTRY(head, ListNode, list))
@@ -104,6 +105,7 @@ class TimerWheelImpl : public std::enable_shared_from_this<TimerWheelImpl> {
  public:
   TimerWheelImpl(size_t us_per_tick, bool enable_lock);
   ~TimerWheelImpl();
+
   bool AddTimer(tick_t timeout,
                 ClosureFunc<void()> callback,
                 TimerOwner* owner = nullptr);
@@ -114,12 +116,17 @@ class TimerWheelImpl : public std::enable_shared_from_this<TimerWheelImpl> {
                       TimerOwner* owner = nullptr);
   bool ResetPeriodTimer(const TimerOwner& owner,
                         tick_t timeout);
-  void MoveOn();
+
+  void MoveOn() {
+    MoveOn(nullptr);
+  }
+  void MoveOn(ClosureFunc<void(ClosureFunc<void()>)> sched_func);
+
   size_t timer_count() const {
     return timer_count_;
   }
   tick_t tick_cur() const {
-    return tick_cur_;
+    return tick_cur_.load(std::memory_order_relaxed);
   }
   // used by TimerOwner
   void DelTimerNode(TimerWheelNode* node);
@@ -156,7 +163,7 @@ class TimerWheelImpl : public std::enable_shared_from_this<TimerWheelImpl> {
   size_t us_per_tick_;
   bool enable_lock_;
   size_t timer_count_;
-  tick_t tick_cur_;
+  std::atomic<tick_t> tick_cur_;
   struct timespec ts_start_;
   static thread_local bool tls_tracking_dead_nodes_;
   static thread_local std::vector<TimerWheelNode*> tls_dead_nodes_;
@@ -173,6 +180,20 @@ TimerWheelImpl::TimerWheelImpl(size_t us_per_tick, bool enable_lock)
 }
 
 TimerWheelImpl::~TimerWheelImpl() {
+  for (size_t tvecs_idx = 0; tvecs_idx < WHEEL_VECS; tvecs_idx++) {
+    TimerVec* tv = wheel_.tvecs[tvecs_idx];
+    size_t tv_size = (tvecs_idx == 0 ? TVR_SIZE : TVN_SIZE);
+    for (size_t tv_index = 0; tv_index < tv_size; tv_index++) {
+      for (ListHead *head = tv->vec + tv_index, *curr = head->next;
+          curr != head; curr = head->next) {
+        TimerWheelNode* node = TIMER_WHEEL_NODE(curr);
+        DelTimerNodeInLock(node);
+        // if owner alive timer-wheel should never freed
+        assert(!(node->flags & kTimerFlagHasOwner));
+        delete node;
+      }
+    }
+  }
 }
 
 bool TimerWheelImpl::AddTimer(tick_t timeout,
@@ -192,9 +213,9 @@ bool TimerWheelImpl::AddTimer(tick_t timeout,
     node = new TimerWheelNode;
   }
   node->timeout = timeout;
-  node->expire = tick_cur_ + timeout;
+  node->expire = tick_cur() + timeout;
   node->callback = std::move(callback);
-  node->flags = (owner ? 0 : kTimerFlagAutoDel);
+  node->flags = (owner ? kTimerFlagHasOwner : 0);
   return AddTimerNode(node);
 }
 
@@ -204,8 +225,8 @@ bool TimerWheelImpl::ResetTimer(const TimerOwner& owner,
   TimerWheelNode* node = owner.timer_.get();
   DelTimerNode(node);
   node->timeout = timeout;
-  node->expire = tick_cur_ + timeout;
-  node->flags = 0;
+  node->expire = tick_cur() + timeout;
+  node->flags = kTimerFlagHasOwner;
   return AddTimerNode(node);
 }
 
@@ -230,9 +251,9 @@ bool TimerWheelImpl::AddPeriodTimer(tick_t timeout,
     node = new TimerWheelNode;
   }
   node->timeout = timeout;
-  node->expire = tick_cur_ + timeout;
+  node->expire = tick_cur() + timeout;
   node->callback = std::move(callback);
-  node->flags = kTimerFlagPeriod;
+  node->flags = kTimerFlagPeriod | (owner ? kTimerFlagHasOwner : 0);
   return AddTimerNode(node);
 }
 
@@ -246,8 +267,8 @@ bool TimerWheelImpl::ResetPeriodTimer(const TimerOwner& owner,
   TimerWheelNode* node = owner.timer_.get();
   DelTimerNode(node);
   node->timeout = timeout;
-  node->expire = tick_cur_ + timeout;
-  node->flags = kTimerFlagPeriod;
+  node->expire = tick_cur() + timeout;
+  node->flags = kTimerFlagPeriod | kTimerFlagHasOwner;
   return AddTimerNode(node);
 }
 
@@ -272,7 +293,7 @@ void TimerWheelImpl::CascadeTimers(TimerVec* tv) {
   tv->index = (tv->index + 1) & TVN_MASK;
 }
 
-void TimerWheelImpl::MoveOn() {
+void TimerWheelImpl::MoveOn(ClosureFunc<void(ClosureFunc<void()>)> sched_func) {
   thread_local std::vector<std::pair<TimerWheelNode*,
                                      ClosureFunc<void()>>> cb_vec;
   PollTimerWheel(&cb_vec);
@@ -288,7 +309,11 @@ void TimerWheelImpl::MoveOn() {
       continue;
     }
     if (callback) {
-      callback();
+      if (!sched_func) {
+        callback();
+      } else {
+        sched_func(std::move(callback));
+      }
     }
   }
   tls_tracking_dead_nodes_ = false;
@@ -301,13 +326,13 @@ void TimerWheelImpl::PollTimerWheel(
   Locker lock(mutex_, enable_lock_);
 
   tick_t tick_to = GetTickNow();
-  if (tick_to < tick_cur_) {
+  if (tick_to < tick_cur()) {
     return;
   }
 
   auto& tv1 = wheel_.tv1;
   auto& tvecs = wheel_.tvecs;
-  while (tick_to >= tick_cur_) {
+  while (tick_to >= tick_cur()) {
     if (tv1.index == 0) {
       int n = 1;
       do {
@@ -323,10 +348,10 @@ void TimerWheelImpl::PollTimerWheel(
         // copy the callback closure
         out->emplace_back(node, node->callback);
         // reschedule
-        node->expire = tick_cur_ + node->timeout;
+        node->expire = tick_cur() + node->timeout;
         AddTimerNodeInLock(node);
       } else {  // oneshot timer
-        if (node->flags & kTimerFlagAutoDel) {
+        if (!(node->flags & kTimerFlagHasOwner)) {
           // no owner, move the callback closure
           out->emplace_back(nullptr, std::move(node->callback));
           delete node;
@@ -337,7 +362,7 @@ void TimerWheelImpl::PollTimerWheel(
       }
     }
     // next tick
-    tick_cur_++;
+    tick_cur_.store(tick_cur() + 1, std::memory_order_relaxed);
     tv1.index = (tv1.index + 1) & TVR_MASK;
   }
 }
@@ -350,7 +375,7 @@ inline bool TimerWheelImpl::AddTimerNode(TimerWheelNode* node) {
 bool TimerWheelImpl::AddTimerNodeInLock(TimerWheelNode* node) {
   // link the node
     tick_t tick_exp = node->expire;
-    tick_t idx = tick_exp - tick_cur_;
+    tick_t idx = tick_exp - tick_cur();
     ListHead* vec;
     if (idx < TVR_SIZE) {
         int i = static_cast<int>(tick_exp & TVR_MASK);
@@ -395,7 +420,7 @@ void TimerWheelImpl::InitTick() {
   if (clock_gettime(CLOCK_MONOTONIC, &ts_start_) < 0) {
     throw std::system_error(errno, std::system_category(), "clock_gettime");
   }
-  tick_cur_ = 0;
+  tick_cur_.store(0, std::memory_order_relaxed);
 }
 
 tick_t TimerWheelImpl::GetTickNow() const {
@@ -468,6 +493,10 @@ bool TimerWheel::ResetPeriodTimer(const TimerOwner& owner,
 
 void TimerWheel::MoveOn() {
   return pimpl_->MoveOn();
+}
+
+void TimerWheel::MoveOn(ClosureFunc<void(ClosureFunc<void()>)> sched_func) {
+  return pimpl_->MoveOn(std::move(sched_func));
 }
 
 size_t TimerWheel::GetTimerCount() const {

@@ -60,6 +60,8 @@ class TimerWheel {
                         tick_t timeout);
 
   void MoveOn();
+  void MoveOn(ClosureFunc<void(ClosureFunc<void()>)> sched_func);
+
   size_t GetTimerCount() const;
   tick_t GetCurrentTick() const;
 
