@@ -39,6 +39,10 @@ static void SetThreadName(const std::string& name) {
     prctl(PR_GET_NAME, buf, 0, 0, 0);
     buf[16] = 0;
     std::string str(buf);
+    size_t slash_pos = str.find_last_of('/');
+    if (slash_pos != std::string::npos) {
+      str.erase(slash_pos);
+    }
     str.append("/");
     str.append(name);
     prctl(PR_SET_NAME, str.c_str(), 0, 0, 0);
