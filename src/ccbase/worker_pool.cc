@@ -130,6 +130,9 @@ WorkerPool::WorkerPool(size_t min_workers,
       shared_inq_(task_queue_->RegisterConsumer()),
       context_supplier_(context_supplier) {
   ExpandWorkersInLock(min_workers);
+  if (total_workers_ < min_workers_) {
+    throw std::runtime_error("create minimal workers failed");
+  }
 }
 
 WorkerPool::~WorkerPool() {

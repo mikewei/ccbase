@@ -93,6 +93,26 @@ TEST_F(WorkerPoolTest, WorkerSelf) {
   ASSERT_EQ(2, val);
 }
 
+namespace {
+  struct TestContext : public ccb::WorkerPool::Context {
+    int Get() const {
+      return 1;
+    }
+  };
+}  // namespace
+
+TEST_F(WorkerPoolTest, UseContext) {
+  ccb::WorkerPool worker_pool{1, 1, 10, [](size_t) {
+    return std::make_shared<TestContext>();
+  }};
+  int value = 0;
+  worker_pool.PostTask([&value] {
+    value = ccb::WorkerPool::Worker::self()->context<TestContext>()->Get();
+  });
+  usleep(10000);
+  ASSERT_EQ(1, value);
+}
+
 PERF_TEST_F_OPT(WorkerPoolTest, PostNopTaskPerf, NOP_TASK_HZ, DEFAULT_TIME) {
   static size_t counter = 0;
   if (++counter == NOP_TASK_HZ) {

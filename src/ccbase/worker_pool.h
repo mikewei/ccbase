@@ -46,6 +46,9 @@ namespace ccb {
 class WorkerPool {
  public:
   class Context {};
+  // For low schedule latency ContextSupplier should be noblocking and do
+  // blocking initialization lazily. If null context is returned the worker
+  // thread creation will fail.
   using ContextSupplier = ClosureFunc<std::shared_ptr<Context>(size_t worker_id)>;
 
   class Worker {
