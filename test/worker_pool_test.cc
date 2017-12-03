@@ -33,7 +33,7 @@
 #include "ccbase/worker_pool.h"
 
 #define QSIZE 100000
-#define NOP_TASK_HZ 1000000
+#define NOP_TASK_HZ 100000
 #define MS1_TASK_HZ 100000
 #define DEFAULT_TIME 1500
 
