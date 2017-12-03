@@ -117,7 +117,7 @@ class WorkerPool {
 
   using TaskQueue = DispatchQueue<ClosureFunc<void()>>;
 
-  bool WorkerPollTask(ClosureFunc<void()>* task);
+  bool WorkerPollTask(Worker* worker, ClosureFunc<void()>* task);
   bool PollTimerTaskInLock(ClosureFunc<void()>* task);
   void SchedTimerTaskInLock(ClosureFunc<void()> task);
   void WorkerBeginProcess(Worker* worker);
@@ -158,7 +158,7 @@ class WorkerPool {
   ContextSupplier context_supplier_;
   std::map<size_t, std::unique_ptr<Worker>> workers_;
   std::mutex updating_mutex_;
-  std::timed_mutex polling_mutex_;
+  std::mutex polling_mutex_;
   ThreadLocalObj<ClientContext> tls_client_ctx_;
 };
 

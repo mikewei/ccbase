@@ -38,9 +38,6 @@ namespace ccb {
 
 namespace {
 
-// lock blocking timeout 100ms
-constexpr int kPollTaskTimeoutMs = 100;
-
 // wait 10 seconds before shrinking workers
 constexpr size_t kShrinkWorkersWaitMs = 10000;
 
@@ -92,13 +89,11 @@ void WorkerPool::Worker::ExitWithAutoCleanup() {
 
 void WorkerPool::Worker::WorkerMainEntry() {
   tls_self_ = this;
-  while (!stop_flag_.load(std::memory_order_acquire)) {
-    ClosureFunc<void()> task_func;
-    if (pool_->WorkerPollTask(&task_func)) {
-      pool_->WorkerBeginProcess(this);
-      task_func();
-      pool_->WorkerEndProcess(this);
-    }
+  ClosureFunc<void()> task_func;
+  while (pool_->WorkerPollTask(this, &task_func)) {
+    pool_->WorkerBeginProcess(this);
+    task_func();
+    pool_->WorkerEndProcess(this);
   }
   ClosureFunc<void()> on_exit{std::move(on_exit_)};
   if (on_exit) on_exit();
@@ -137,26 +132,23 @@ WorkerPool::WorkerPool(size_t min_workers,
 
 WorkerPool::~WorkerPool() {
   std::lock_guard<std::mutex> locker(updating_mutex_);
-  // speed up terminating
+  // signal all worker threads to exit
   for (auto& entry : workers_) {
     entry.second->stop_flag_.store(true, std::memory_order_relaxed);
   }
   workers_.clear();
 }
 
-bool WorkerPool::WorkerPollTask(ClosureFunc<void()>* task) {
-  using Ms = std::chrono::milliseconds;
-  std::unique_lock<std::timed_mutex> lock(polling_mutex_, Ms(kPollTaskTimeoutMs));
-  if (lock) {
-    for (size_t t = 0; t < kPollTaskTimeoutMs; t++) {
-      if (PollTimerTaskInLock(task)) {
-        return true;
-      }
-      if (shared_inq_->Pop(task)) {
-        return true;
-      }
-      usleep(1000);
+bool WorkerPool::WorkerPollTask(Worker* worker, ClosureFunc<void()>* task) {
+  std::lock_guard<std::mutex> lock(polling_mutex_);
+  while (!worker->stop_flag_.load(std::memory_order_acquire)) {
+    if (PollTimerTaskInLock(task)) {
+      return true;
     }
+    if (shared_inq_->Pop(task)) {
+      return true;
+    }
+    usleep(1000);
   }
   return false;
 }
