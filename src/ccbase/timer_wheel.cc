@@ -36,20 +36,27 @@
 #include "ccbase/timer_wheel.h"
 #include "ccbase/macro_list.h"
 
-#define WHEEL_VECS 5
-#define TVN_BITS 6
-#define TVR_BITS 8
-#define TVN_SIZE (1 << TVN_BITS)
-#define TVR_SIZE (1 << TVR_BITS)
-#define TVN_MASK (TVN_SIZE - 1)
-#define TVR_MASK (TVR_SIZE - 1)
+#define CCB_TIMER_WHEEL_NODE(head) \
+    static_cast<TimerWheelNode*>(CCB_LIST_ENTRY(head, ListNode, list))
 
-namespace ccb {
+namespace {
 
+constexpr uint64_t kTimerWheelVecs = 5;
+constexpr uint64_t kTimerVecBits = 6;
+constexpr uint64_t kTimerVecRootBits = 8;
+constexpr uint64_t kTimerVecSize = 1UL << kTimerVecBits;
+constexpr uint64_t kTimerVecRootSize = 1UL << kTimerVecRootBits;
+constexpr uint64_t kTimerVecMask = kTimerVecSize - 1;
+constexpr uint64_t kTimerVecRootMask = kTimerVecRootSize - 1;
+constexpr uint64_t kTimerMaxTimeout = 0xffffffffUL;
+
+// timer node flags
 constexpr int kTimerFlagHasOwner = 0x1;
 constexpr int kTimerFlagPeriod = 0x2;
 
-#define TIMER_WHEEL_NODE(head)  static_cast<TimerWheelNode*>(CCB_LIST_ENTRY(head, ListNode, list))
+}  // namespace
+
+namespace ccb {
 
 struct ListNode {
   ListHead list;
@@ -64,12 +71,12 @@ struct TimerWheelNode : ListNode {
 
 struct TimerVecRoot {
   int index;
-  ListHead vec[TVR_SIZE];
+  ListHead vec[kTimerVecRootSize];
 };
 
 struct TimerVec {
   int index;
-  ListHead vec[TVN_SIZE];
+  ListHead vec[kTimerVecSize];
 };
 
 struct TimerWheelVecs {
@@ -78,13 +85,12 @@ struct TimerWheelVecs {
   TimerVec tv3;
   TimerVec tv2;
   TimerVecRoot tv1;
-  TimerVec * const tvecs[WHEEL_VECS] = {
+  TimerVec* const tvecs[kTimerWheelVecs] = {
     reinterpret_cast<TimerVec *>(&tv1), &tv2, &tv3, &tv4, &tv5
   };
 
   TimerWheelVecs() {
-    int i;
-    for (i = 0; i < TVN_SIZE; i++) {
+    for (size_t i = 0; i < kTimerVecSize; i++) {
       CCB_INIT_LIST_HEAD(tv5.vec + i);
       CCB_INIT_LIST_HEAD(tv4.vec + i);
       CCB_INIT_LIST_HEAD(tv3.vec + i);
@@ -94,7 +100,7 @@ struct TimerWheelVecs {
     tv4.index = 0;
     tv3.index = 0;
     tv2.index = 0;
-    for (i = 0; i < TVR_SIZE; i++) {
+    for (size_t i = 0; i < kTimerVecRootSize; i++) {
       CCB_INIT_LIST_HEAD(tv1.vec + i);
     }
     tv1.index = 0;
@@ -133,7 +139,7 @@ class TimerWheelImpl : public std::enable_shared_from_this<TimerWheelImpl> {
 
  private:
   bool AddTimerNode(TimerWheelNode* node);
-  bool AddTimerNodeInLock(TimerWheelNode* node);
+  void AddTimerNodeInLock(TimerWheelNode* node);
   void DelTimerNodeInLock(TimerWheelNode* node);
   void CascadeTimers(TimerVec* tv);
   void PollTimerWheel(std::vector<std::pair<TimerWheelNode*,
@@ -180,13 +186,13 @@ TimerWheelImpl::TimerWheelImpl(size_t us_per_tick, bool enable_lock)
 }
 
 TimerWheelImpl::~TimerWheelImpl() {
-  for (size_t tvecs_idx = 0; tvecs_idx < WHEEL_VECS; tvecs_idx++) {
+  for (size_t tvecs_idx = 0; tvecs_idx < kTimerWheelVecs; tvecs_idx++) {
     TimerVec* tv = wheel_.tvecs[tvecs_idx];
-    size_t tv_size = (tvecs_idx == 0 ? TVR_SIZE : TVN_SIZE);
+    size_t tv_size = (tvecs_idx == 0 ? kTimerVecRootSize : kTimerVecSize);
     for (size_t tv_index = 0; tv_index < tv_size; tv_index++) {
       for (ListHead *head = tv->vec + tv_index, *curr = head->next;
           curr != head; curr = head->next) {
-        TimerWheelNode* node = TIMER_WHEEL_NODE(curr);
+        TimerWheelNode* node = CCB_TIMER_WHEEL_NODE(curr);
         DelTimerNodeInLock(node);
         // if owner alive timer-wheel should never freed
         assert(!(node->flags & kTimerFlagHasOwner));
@@ -199,6 +205,9 @@ TimerWheelImpl::~TimerWheelImpl() {
 bool TimerWheelImpl::AddTimer(tick_t timeout,
                               ClosureFunc<void()> callback,
                               TimerOwner* owner) {
+  if (timeout > kTimerMaxTimeout) {
+    return false;
+  }
   TimerWheelNode* node = nullptr;
   if (owner) {
     if (owner->has_timer()) {
@@ -221,7 +230,12 @@ bool TimerWheelImpl::AddTimer(tick_t timeout,
 
 bool TimerWheelImpl::ResetTimer(const TimerOwner& owner,
                                 tick_t timeout) {
-  if (!owner.has_timer()) return false;
+  if (timeout > kTimerMaxTimeout) {
+    return false;
+  }
+  if (!owner.has_timer()) {
+    return false;
+  }
   TimerWheelNode* node = owner.timer_.get();
   DelTimerNode(node);
   node->timeout = timeout;
@@ -233,7 +247,7 @@ bool TimerWheelImpl::ResetTimer(const TimerOwner& owner,
 bool TimerWheelImpl::AddPeriodTimer(tick_t timeout,
                                     ClosureFunc<void()> callback,
                                     TimerOwner* owner) {
-  if (timeout == 0) {
+  if (timeout > kTimerMaxTimeout || timeout == 0) {
     // 0-tick period timer is not allowed
     return false;
   }
@@ -259,11 +273,13 @@ bool TimerWheelImpl::AddPeriodTimer(tick_t timeout,
 
 bool TimerWheelImpl::ResetPeriodTimer(const TimerOwner& owner,
                                       tick_t timeout) {
-  if (timeout == 0) {
+  if (timeout > kTimerMaxTimeout || timeout == 0) {
     // 0-tick period timer is not allowed
     return false;
   }
-  if (!owner.has_timer()) return false;
+  if (!owner.has_timer()) {
+    return false;
+  }
   TimerWheelNode* node = owner.timer_.get();
   DelTimerNode(node);
   node->timeout = timeout;
@@ -284,13 +300,13 @@ void TimerWheelImpl::CascadeTimers(TimerVec* tv) {
    * detach them individually, just clear the list afterwards.
    */
   while (curr != head) {
-    TimerWheelNode* node = TIMER_WHEEL_NODE(curr);
+    TimerWheelNode* node = CCB_TIMER_WHEEL_NODE(curr);
     next = curr->next;
     AddTimerNodeInLock(node);
     curr = next;
   }
   CCB_INIT_LIST_HEAD(head);
-  tv->index = (tv->index + 1) & TVN_MASK;
+  tv->index = (tv->index + 1) & kTimerVecMask;
 }
 
 void TimerWheelImpl::MoveOn(ClosureFunc<void(ClosureFunc<void()>)> sched_func) {
@@ -334,15 +350,15 @@ void TimerWheelImpl::PollTimerWheel(
   auto& tvecs = wheel_.tvecs;
   while (tick_to >= tick_cur()) {
     if (tv1.index == 0) {
-      int n = 1;
+      size_t n = 1;
       do {
         CascadeTimers(tvecs[n]);
-      } while (tvecs[n]->index == 1 && ++n < WHEEL_VECS);
+      } while (tvecs[n]->index == 1 && ++n < kTimerWheelVecs);
     }
 
     for (ListHead *head = tv1.vec + tv1.index, *curr = head->next;
          curr != head; curr = head->next) {
-      TimerWheelNode* node = TIMER_WHEEL_NODE(curr);
+      TimerWheelNode* node = CCB_TIMER_WHEEL_NODE(curr);
       DelTimerNodeInLock(node);
       if (node->flags & kTimerFlagPeriod) {  // period timer
         // copy the callback closure
@@ -363,41 +379,44 @@ void TimerWheelImpl::PollTimerWheel(
     }
     // next tick
     tick_cur_.store(tick_cur() + 1, std::memory_order_relaxed);
-    tv1.index = (tv1.index + 1) & TVR_MASK;
+    tv1.index = (tv1.index + 1) & kTimerVecRootMask;
   }
 }
 
 inline bool TimerWheelImpl::AddTimerNode(TimerWheelNode* node) {
   Locker lock(mutex_, enable_lock_);
-  return AddTimerNodeInLock(node);
+  AddTimerNodeInLock(node);
+  return true;
 }
 
-bool TimerWheelImpl::AddTimerNodeInLock(TimerWheelNode* node) {
+void TimerWheelImpl::AddTimerNodeInLock(TimerWheelNode* node) {
   // link the node
-    tick_t tick_exp = node->expire;
-    tick_t idx = tick_exp - tick_cur();
-    ListHead* vec;
-    if (idx < TVR_SIZE) {
-        int i = static_cast<int>(tick_exp & TVR_MASK);
-        vec = wheel_.tv1.vec + i;
-    } else if (idx < (tick_t)1 << (TVR_BITS + TVN_BITS)) {
-        int i = static_cast<int>((tick_exp >> TVR_BITS) & TVN_MASK);
-        vec = wheel_.tv2.vec + i;
-    } else if (idx < (tick_t)1 << (TVR_BITS + 2 * TVN_BITS)) {
-        int i = static_cast<int>((tick_exp >> (TVR_BITS + TVN_BITS)) & TVN_MASK);
-        vec = wheel_.tv3.vec + i;
-    } else if (idx < (tick_t)1 << (TVR_BITS + 3 * TVN_BITS)) {
-        int i = static_cast<int>((tick_exp >> (TVR_BITS + 2 * TVN_BITS)) & TVN_MASK);
-        vec = wheel_.tv4.vec + i;
-    } else if (idx < (tick_t)1 << (TVR_BITS + 4 * TVN_BITS)) {
-        int i = static_cast<int>((tick_exp >> (TVR_BITS + 3 * TVN_BITS)) & TVN_MASK);
-        vec = wheel_.tv5.vec + i;
-    } else {
-    return false;
+  tick_t tick_exp = node->expire;
+  tick_t tick_now = tick_cur();
+  // exp < now may happen in multi-thread environment
+  tick_t idx = (tick_exp >= tick_now ? tick_exp - tick_now : 0);
+  ListHead* vec;
+  if (idx < kTimerVecRootSize) {
+    int i = static_cast<int>(tick_exp & kTimerVecRootMask);
+    vec = wheel_.tv1.vec + i;
+  } else if (idx < (tick_t)1 << (kTimerVecRootBits + kTimerVecBits)) {
+    int i = static_cast<int>((tick_exp >> kTimerVecRootBits) & kTimerVecMask);
+    vec = wheel_.tv2.vec + i;
+  } else if (idx < (tick_t)1 << (kTimerVecRootBits + 2 * kTimerVecBits)) {
+    int i = static_cast<int>((tick_exp >> (kTimerVecRootBits + kTimerVecBits)) & kTimerVecMask);
+    vec = wheel_.tv3.vec + i;
+  } else if (idx < (tick_t)1 << (kTimerVecRootBits + 3 * kTimerVecBits)) {
+    int i = static_cast<int>((tick_exp >> (kTimerVecRootBits + 2 * kTimerVecBits)) & kTimerVecMask);
+    vec = wheel_.tv4.vec + i;
+  } else if (idx < (tick_t)1 << (kTimerVecRootBits + 4 * kTimerVecBits)) {
+    int i = static_cast<int>((tick_exp >> (kTimerVecRootBits + 3 * kTimerVecBits)) & kTimerVecMask);
+    vec = wheel_.tv5.vec + i;
+  } else {
+    // exp - now > kTimerMaxTimeout
+    assert(false);
   }
   CCB_LIST_ADD(&(node->list), vec->prev);
   timer_count_++;
-  return true;
 }
 
 inline void TimerWheelImpl::DelTimerNode(TimerWheelNode* node) {
