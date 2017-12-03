@@ -339,9 +339,10 @@ TEST_F(TimerWheelMTTest, Simple) {
 
 PERF_TEST_F(TimerWheelMTTest, AddTimerPerf) {
   timers_++;
-  tw_.AddTimer(1, [this]{
+  bool res = tw_.AddTimer(1, [this]{
     timers_--;
   });
+  ASSERT_TRUE(res) << PERF_ABORT;
   if ((++count_ & 0x3fffff) == 1) {
     fprintf(stderr, "pending %d timers\n", static_cast<int>(timers_));
   }
