@@ -414,6 +414,7 @@ void TimerWheelImpl::AddTimerNodeInLock(TimerWheelNode* node) {
   } else {
     // exp - now > kTimerMaxTimeout
     assert(false);
+    return;
   }
   CCB_LIST_ADD(&(node->list), vec->prev);
   timer_count_++;

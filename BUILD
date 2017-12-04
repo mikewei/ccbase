@@ -68,7 +68,6 @@ cc_test(
     "-fsanitize=address",
   ],
   linkopts = [
-    "-g",
     "-fsanitize=address",
     "-static-libasan",
   ],
