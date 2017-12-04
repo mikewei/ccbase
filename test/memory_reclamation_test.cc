@@ -69,6 +69,8 @@ using TestTypes = testing::Types<ccb::RefCountReclamation<TraceableObj>,
 template <class RType>
 class MemoryReclamationTest : public testing::Test {
  protected:
+  MemoryReclamationTest() : ptr_(nullptr) {}
+
   void SetUp() {
     ASSERT_EQ(0, TraceableObj::allocated_objs());
   }
@@ -76,13 +78,15 @@ class MemoryReclamationTest : public testing::Test {
     ASSERT_EQ(0, TraceableObj::allocated_objs());
   }
   ccb::PtrReclamationAdapter<TraceableObj, RType> recl_;
-  std::atomic<TraceableObj*> ptr_{nullptr};
+  std::atomic<TraceableObj*> ptr_;
 };
 TYPED_TEST_CASE(MemoryReclamationTest, TestTypes);
 
 template <class RType>
 class MemoryReclamationPerfTest : public testing::Test {
  protected:
+  MemoryReclamationPerfTest() : stop_flag_(false), ptr_(nullptr) {}
+
   void SetUp() {
     ASSERT_EQ(0, TraceableObj::allocated_objs());
     auto reader_code = [this] {
@@ -122,9 +126,9 @@ class MemoryReclamationPerfTest : public testing::Test {
   }
   std::thread reader_tasks_[2];
   std::thread writer_tasks_[1];
-  std::atomic<bool> stop_flag_{false};
+  std::atomic<bool> stop_flag_;
   ccb::PtrReclamationAdapter<TraceableObj, RType> recl_;
-  std::atomic<TraceableObj*> ptr_{nullptr};
+  std::atomic<TraceableObj*> ptr_;
 };
 TYPED_TEST_CASE(MemoryReclamationPerfTest, TestTypes);
 

@@ -48,7 +48,7 @@ namespace ccb {
 template <class T>
 class RefCountReclamation {
  public:
-  RefCountReclamation() = default;
+  RefCountReclamation() : ref_count_(0) {}
 
   void ReadLock() {
     ref_count_.fetch_add(1, std::memory_order_seq_cst);
@@ -77,7 +77,7 @@ class RefCountReclamation {
  private:
   CCB_NOT_COPYABLE_AND_MOVABLE(RefCountReclamation);
 
-  std::atomic<size_t> ref_count_{0};
+  std::atomic<size_t> ref_count_;
 };
 
 
@@ -201,8 +201,10 @@ class EpochBasedReclamation {
 
   // reader state
   struct ReaderThreadState {
-    std::atomic<bool> is_active{false};
-    std::atomic<uint64_t> local_epoch{0};
+    std::atomic<bool> is_active;
+    std::atomic<uint64_t> local_epoch;
+
+    ReaderThreadState() : is_active(false), local_epoch(0) {}
   };
 
   // writer state

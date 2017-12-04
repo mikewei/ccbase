@@ -125,6 +125,8 @@ TYPED_TEST(ConcurrentPtrTest, Reset) {
 template <class RType>
 class ConcurrentPtrPerfTest : public ConcurrentPtrTest<RType> {
  protected:
+  ConcurrentPtrPerfTest() : stop_flag_(false) {}
+
   void SetUp() {
     ConcurrentPtrTest<RType>::SetUp();
     this->conc_ptr_.Reset(new TraceableObj);
@@ -181,7 +183,7 @@ class ConcurrentPtrPerfTest : public ConcurrentPtrTest<RType> {
   std::thread reader_tasks_[1];
   std::thread writer_tasks_[1];
   std::thread spawn_tasks_[1];
-  std::atomic<bool> stop_flag_{false};
+  std::atomic<bool> stop_flag_;
 };
 TYPED_TEST_CASE(ConcurrentPtrPerfTest, TestTypes<TraceableObj>);
 
@@ -234,6 +236,8 @@ TYPED_TEST(ConcurrentSharedPtrTest, Reset) {
 template <class RType>
 class ConcurrentSharedPtrPerfTest : public ConcurrentSharedPtrTest<RType> {
  protected:
+  ConcurrentSharedPtrPerfTest() : stop_flag_(false) {}
+
   void SetUp() {
     ConcurrentSharedPtrTest<RType>::SetUp();
     this->cs_ptr_.Reset(new TraceableObj);
@@ -290,7 +294,7 @@ class ConcurrentSharedPtrPerfTest : public ConcurrentSharedPtrTest<RType> {
   std::thread reader_tasks_[1];
   std::thread writer_tasks_[1];
   std::thread spawn_tasks_[1];
-  std::atomic<bool> stop_flag_{false};
+  std::atomic<bool> stop_flag_;
 };
 TYPED_TEST_CASE(ConcurrentSharedPtrPerfTest, TestTypes<std::shared_ptr<TraceableObj>>);
 
@@ -306,6 +310,8 @@ TYPED_PERF_TEST(ConcurrentSharedPtrPerfTest, ReaderPerf) {
 #if defined(__GNUC__) && __GNUC__ >= 5
 class StdAtomicSharedPtrPerfTest : public testing::Test {
  protected:
+  StdAtomicSharedPtrPerfTest() : stop_flag_(false) {}
+
   void SetUp() {
     std::atomic_store(&this->as_ptr_, std::make_shared<TraceableObj>());
     auto reader_code = [this] {
@@ -358,7 +364,7 @@ class StdAtomicSharedPtrPerfTest : public testing::Test {
   std::thread reader_tasks_[1];
   std::thread writer_tasks_[1];
   std::thread spawn_tasks_[1];
-  std::atomic<bool> stop_flag_{false};
+  std::atomic<bool> stop_flag_;
   std::shared_ptr<TraceableObj> as_ptr_;
 };
 
