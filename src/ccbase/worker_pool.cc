@@ -134,7 +134,7 @@ WorkerPool::~WorkerPool() {
   std::lock_guard<std::mutex> locker(updating_mutex_);
   // signal all worker threads to exit
   for (auto& entry : workers_) {
-    entry.second->stop_flag_.store(true, std::memory_order_relaxed);
+    entry.second->stop_flag_.store(true, std::memory_order_release);
   }
   workers_.clear();
 }
@@ -150,7 +150,7 @@ bool WorkerPool::WorkerPollTask(Worker* worker, ClosureFunc<void()>* task) {
     }
     usleep(1000);
   }
-  return false;
+  return shared_inq_->Pop(task);
 }
 
 bool WorkerPool::PollTimerTaskInLock(ClosureFunc<void()>* task) {

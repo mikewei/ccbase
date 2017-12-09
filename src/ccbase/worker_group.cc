@@ -28,6 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <stdio.h>
+#include <limits>
 #include <utility>
 #include "ccbase/thread.h"
 #include "ccbase/worker_group.h"
@@ -74,7 +75,7 @@ WorkerGroup::Worker::Worker(WorkerGroup* grp, size_t id,
 }
 
 WorkerGroup::Worker::~Worker() {
-  stop_flag_.store(true, std::memory_order_relaxed);
+  stop_flag_.store(true, std::memory_order_release);
   thread_.join();
 }
 
@@ -84,11 +85,12 @@ bool WorkerGroup::Worker::PostTask(ClosureFunc<void()> func) {
 
 void WorkerGroup::Worker::WorkerMainEntry() {
   tls_self_ = this;
-  while (!stop_flag_.load(std::memory_order_relaxed)) {
+  while (!stop_flag_.load(std::memory_order_acquire)) {
     TimerWheel::MoveOn();
     size_t n = BatchProcessTasks(kMaxBatchProcessTasks);
     poller_->Poll(n < kMaxBatchProcessTasks ? kPollerTimeoutMs : 0);
   }
+  BatchProcessTasks(std::numeric_limits<size_t>::max());
 }
 
 size_t WorkerGroup::Worker::BatchProcessTasks(size_t max) {
