@@ -71,7 +71,7 @@ WorkerGroup::Worker::Worker(WorkerGroup* grp, size_t id,
       stop_flag_(false) {
   char name[16];
   snprintf(name, sizeof(name), "w%lu-%lu", grp->id(), id);
-  thread_ = CreateThread(name, std::bind(&Worker::WorkerMainEntry, this));
+  thread_ = CreateThread(name, BindClosure(this, &Worker::WorkerMainEntry));
 }
 
 WorkerGroup::Worker::~Worker() {
