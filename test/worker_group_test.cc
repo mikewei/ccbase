@@ -66,7 +66,7 @@ TEST_F(WorkerGroupTest, PostTask) {
   worker_group_2_.PostTask(0, [this] {
     val++;
   });
-  usleep(1000);
+  usleep(10000);
   ASSERT_EQ(4, val);
   worker_group_1_.PostTask([this] {
     val--;
