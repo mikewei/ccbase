@@ -41,7 +41,7 @@
 
 namespace ccb {
 
-template <class T, size_t kMaxProducers = 1024,
+template <class T, size_t kMaxProducers = 1024*16,
                    size_t kMaxConsumers = 1024>
 class DispatchQueue {
  public:
