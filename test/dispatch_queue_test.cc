@@ -177,7 +177,8 @@ PERF_TEST_F_OPT(DispatchQueuePerfTest, IO_Perf, DEFAULT_HZ, DEFAULT_TIME) {
   if (q->Push(val/2%2, val)) {
     val += 2;
   } else {
-    overflow_++;
+    overflow_.store(overflow_.load(std::memory_order_relaxed) + 1,
+                    std::memory_order_relaxed);
   }
   if ((val & 0xfff) == 0) {
     ASSERT_FALSE(err_found_.load(std::memory_order_relaxed)) << PERF_ABORT;
