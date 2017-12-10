@@ -123,7 +123,7 @@ class DispatchQueuePerfTest : public testing::Test {
         err_found_.store(true, std::memory_order_relaxed);
         break;
       }
-      count.fetch_add(1, std::memory_order_relaxed);
+      count.store(count.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
     }
     std::cout << "consumer thread #" << id << " exit" << std::endl;
   }
@@ -147,9 +147,16 @@ class DispatchQueuePerfTest : public testing::Test {
     std::cout << "producer thread #" << id << " exit" << std::endl;
   }
   void OnTimer() {
-    std::cout << "r1_read " << r1_count_ << "/s  r2_read " << r2_count_
-              << "  overflow " <<  overflow_ << std::endl;
-    r1_count_ = r2_count_ = overflow_ = 0;
+    thread_local uint64_t last_r1_count = 0;
+    thread_local uint64_t last_r2_count = 0;
+    thread_local uint64_t last_overflow = 0;
+    std::cout << "r1_read " << r1_count_ - last_r1_count
+              << "/s  r2_read " << r2_count_ - last_r2_count
+              << "  overflow " <<  overflow_ - last_overflow
+              << std::endl;
+    last_r1_count = r1_count_;
+    last_r2_count = r2_count_;
+    last_overflow = overflow_;
   }
 
   ccb::DispatchQueue<int> dispatch_queue_;
