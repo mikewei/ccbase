@@ -317,23 +317,23 @@ TEST_F(TimerWheelMTTest, Simple) {
     check--;
   });
   check++;
-  usleep(1000);
+  usleep(10000);
   ASSERT_EQ(0, check);
-  // 5ms
-  tw_.AddTimer(5, [&check] {
+  // 50ms
+  tw_.AddTimer(50, [&check] {
     check -= 5;
   });
   check += 5;
-  usleep(2000);
+  usleep(20000);
   EXPECT_EQ(5, check);
-  usleep(4000);
+  usleep(40000);
   ASSERT_EQ(0, check);
   // 500ms
   tw_.AddTimer(500, [&check] {
     check -= 500;
   });
   check += 500;
-  usleep(501000);
+  usleep(510000);
   ASSERT_EQ(0, check);
 }
 
