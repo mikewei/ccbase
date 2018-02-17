@@ -82,7 +82,6 @@ class WorkerPool {
     size_t id_;
     std::shared_ptr<Context> context_;
     std::atomic_bool stop_flag_;
-    ClosureFunc<void()> on_exit_;
     std::thread thread_;
     static thread_local Worker* tls_self_;
     friend class WorkerPool;
@@ -121,7 +120,7 @@ class WorkerPool {
   bool PollTimerTaskInLock(ClosureFunc<void()>* task);
   void SchedTimerTaskInLock(ClosureFunc<void()> task);
   void WorkerBeginProcess(Worker* worker);
-  void WorkerEndProcess(Worker* worker);
+  bool WorkerEndProcess(Worker* worker);
   bool CheckHighWatermark();
   bool CheckLowWatermark();
   void ExpandWorkersInLock(size_t num);

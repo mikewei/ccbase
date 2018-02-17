@@ -79,24 +79,20 @@ WorkerPool::Worker::~Worker() {
   }
 }
 
-void WorkerPool::Worker::ExitWithAutoCleanup() {
-  thread_.detach();
-  on_exit_ = [this] {
-    delete this;
-  };
-  stop_flag_.store(true, std::memory_order_release);
-}
-
 void WorkerPool::Worker::WorkerMainEntry() {
   tls_self_ = this;
+  std::unique_ptr<Worker> self_deleter;
   ClosureFunc<void()> task_func;
   while (pool_->WorkerPollTask(this, &task_func)) {
     pool_->WorkerBeginProcess(this);
     task_func();
-    pool_->WorkerEndProcess(this);
+    if (pool_->WorkerEndProcess(this)) {
+      // this worker is retired
+      thread_.detach();
+      self_deleter.reset(this);
+      break;
+    }
   }
-  ClosureFunc<void()> on_exit{std::move(on_exit_)};
-  if (on_exit) on_exit();
 }
 
 
@@ -179,14 +175,17 @@ void WorkerPool::WorkerBeginProcess(Worker* worker) {
   }
 }
 
-void WorkerPool::WorkerEndProcess(Worker* worker) {
+bool WorkerPool::WorkerEndProcess(Worker* worker) {
+  bool retire_this_worker = false;
   busy_workers_--;
   if (CheckLowWatermark() && updating_mutex_.try_lock()) {
     if (CheckLowWatermark()) {
       RetireWorkerInLock(worker);
+      retire_this_worker = true;
     }
     updating_mutex_.unlock();
   }
+  return retire_this_worker;
 }
 
 bool WorkerPool::CheckHighWatermark() {
@@ -236,7 +235,7 @@ void WorkerPool::ExpandWorkersInLock(size_t num) {
 
 void WorkerPool::RetireWorkerInLock(Worker* worker) {
   auto it = workers_.find(worker->id());
-  it->second.release()->ExitWithAutoCleanup();
+  it->second.release();
   workers_.erase(it);
   total_workers_.store(workers_.size(), std::memory_order_relaxed);
 }
