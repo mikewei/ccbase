@@ -131,7 +131,7 @@ class DispatchQueuePerfTest : public testing::Test {
     std::cout << "producer thread #" << id << " start" << std::endl;
     uint64_t hz = FLAGS_hz ? FLAGS_hz : DEFAULT_HZ;
     std::cerr << "hz=" << hz << std::endl;
-    ccb::TokenBucket tb(hz, hz/5, hz/500);
+    ccb::TokenBucket tb(hz, hz/5, hz/500, nullptr, false);
     auto q = dispatch_queue_.RegisterProducer();
     int val = 1;
     while (!stop_.load(std::memory_order_relaxed)) {
