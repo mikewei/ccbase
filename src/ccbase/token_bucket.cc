@@ -43,19 +43,51 @@
 
 namespace ccb {
 
+namespace {
+
+// conditional locker
+class Locker {
+ public:
+  Locker(std::mutex* m, bool on)
+      : m_(*m), on_(on) {
+    if (on_) m_.lock();
+  }
+  ~Locker() {
+    if (on_) m_.unlock();
+  }
+
+ private:
+  std::mutex& m_;
+  bool on_;
+};
+
+}  // namespace
+
 TokenBucket::TokenBucket(uint32_t tokens_per_sec)
-  : TokenBucket(tokens_per_sec, tokens_per_sec / 5) {}
+    : TokenBucket(tokens_per_sec,
+                  tokens_per_sec / 5,
+                  true) {
+}
 
-TokenBucket::TokenBucket(uint32_t tokens_per_sec, uint32_t bucket_size)
-  : TokenBucket(tokens_per_sec, bucket_size, bucket_size) {}
+TokenBucket::TokenBucket(uint32_t tokens_per_sec,
+                         uint32_t bucket_size)
+    : TokenBucket(tokens_per_sec,
+                  bucket_size,
+                  bucket_size,
+                  nullptr,
+                  true) {
+}
 
-TokenBucket::TokenBucket(uint32_t tokens_per_sec, uint32_t bucket_size,
-                         uint32_t init_tokens, const struct timeval* tv_now) {
+TokenBucket::TokenBucket(uint32_t tokens_per_sec,
+                         uint32_t bucket_size,
+                         uint32_t init_tokens,
+                         const struct timeval* tv_now,
+                         bool enable_lock_for_mt)
+    : tokens_per_sec_(tokens_per_sec),
+      bucket_size_(bucket_size ? bucket_size : 1),
+      token_count_(init_tokens),
+      enable_lock_(enable_lock_for_mt) {
   struct timeval tv;
-
-  tokens_per_sec_ = tokens_per_sec;
-  bucket_size_ = bucket_size ? bucket_size : 1;
-  token_count_ = init_tokens;
   if (!tv_now) {
     tv_now = &tv;
     gettimeofday(&tv, nullptr);
@@ -65,15 +97,27 @@ TokenBucket::TokenBucket(uint32_t tokens_per_sec, uint32_t bucket_size,
 }
 
 void TokenBucket::Mod(uint32_t tokens_per_sec, uint32_t bucket_size) {
+  Locker locker(&gen_mutex_, enable_lock_);
   tokens_per_sec_ = tokens_per_sec;
   bucket_size_ = bucket_size;
+}
+
+void TokenBucket::Mod(uint32_t tokens_per_sec,
+                      uint32_t bucket_size,
+                      uint32_t init_tokens) {
+  Locker locker(&gen_mutex_, enable_lock_);
+  tokens_per_sec_ = tokens_per_sec;
+  bucket_size_ = bucket_size;
+  token_count_.store(init_tokens, std::memory_order_relaxed);
 }
 
 void TokenBucket::Gen(const struct timeval* tv_now) {
   struct timeval tv;
   uint64_t us_now, us_past;
   uint64_t new_tokens, calc_delta;
-  int64_t new_token_count;
+  int64_t new_token_count, cur_token_count;
+
+  Locker locker(&gen_mutex_, enable_lock_);
 
   if (tv_now == nullptr) {
     tv_now = &tv;
@@ -93,37 +137,55 @@ void TokenBucket::Gen(const struct timeval* tv_now) {
 
   last_gen_time_ = us_now;
   last_calc_delta_ = calc_delta;
-  new_token_count = token_count_ + new_tokens;
-  if (new_token_count < token_count_) {
-    token_count_ = bucket_size_;
-    return;
-  }
-  if (new_token_count > bucket_size_) {
+  cur_token_count = token_count_.load(std::memory_order_relaxed);
+  new_token_count = cur_token_count + new_tokens;
+  if (new_token_count < cur_token_count ||
+      new_token_count > static_cast<int64_t>(bucket_size_)) {
     new_token_count = bucket_size_;
   }
-  token_count_ = new_token_count;
-
-  return;
+  if (!enable_lock_) {
+    token_count_.store(new_token_count, std::memory_order_relaxed);
+  } else {
+    token_count_.fetch_add(new_token_count - cur_token_count);
+  }
 }
 
 bool TokenBucket::Check(uint32_t need_tokens) {
-  if (token_count_ < (int64_t)need_tokens) {
+  int64_t token_count = token_count_.load(std::memory_order_relaxed);
+  if (token_count < static_cast<int64_t>(need_tokens)) {
     return false;
   }
   return true;
 }
 
 bool TokenBucket::Get(uint32_t need_tokens) {
-  if (token_count_ < (int64_t)need_tokens) {
+  int64_t token_count = token_count_.load(std::memory_order_relaxed);
+  if (token_count < static_cast<int64_t>(need_tokens)) {
     return false;
   }
-  token_count_ -= need_tokens;
+  if (!enable_lock_) {
+    token_count_.store(token_count - need_tokens, std::memory_order_relaxed);
+  } else {
+    int64_t cur_tokens = token_count_.fetch_sub(need_tokens);
+    if (cur_tokens < -static_cast<int64_t>(bucket_size_)) {
+      // rollback if overdraft too much
+      token_count_.fetch_add(need_tokens);
+      return false;
+    }
+  }
   return true;
 }
 
 int TokenBucket::Overdraft(uint32_t need_tokens) {
-  token_count_ -= need_tokens;
-  return (token_count_ < 0 ? -token_count_ : 0);
+  int64_t cur_tokens;
+  if (!enable_lock_) {
+    cur_tokens = token_count_.load(std::memory_order_relaxed);
+    token_count_.store(cur_tokens - need_tokens, std::memory_order_relaxed);
+  } else {
+    cur_tokens = token_count_.fetch_sub(need_tokens);
+  }
+  return (cur_tokens < static_cast<int64_t>(need_tokens) ?
+              need_tokens - cur_tokens : 0);
 }
 
 }  // namespace ccb

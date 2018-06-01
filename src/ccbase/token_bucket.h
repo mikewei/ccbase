@@ -32,6 +32,8 @@
 
 #include <sys/time.h>
 #include <stdint.h>
+#include <atomic>
+#include <mutex>
 #include "ccbase/common.h"
 
 namespace ccb {
@@ -39,34 +41,40 @@ namespace ccb {
 class TokenBucket {
  public:
   explicit TokenBucket(uint32_t tokens_per_sec);
-  TokenBucket(uint32_t tokens_per_sec, uint32_t bucket_size);
-  TokenBucket(uint32_t tokens_per_sec, uint32_t bucket_size,
-              uint32_t init_tokens, const struct timeval* tv_now = nullptr);
-  // copyable
-  TokenBucket(const TokenBucket&) = default;
-  TokenBucket& operator=(const TokenBucket&) = default;
+  TokenBucket(uint32_t tokens_per_sec,
+              uint32_t bucket_size);
+  TokenBucket(uint32_t tokens_per_sec,
+              uint32_t bucket_size,
+              uint32_t init_tokens,
+              const struct timeval* tv_now = nullptr,
+              bool enable_lock_for_mt = true);
 
   void Gen(const struct timeval* tv_now = nullptr);
   bool Get(uint32_t need_tokens = 1);
-  void Mod(uint32_t tokens_per_sec, uint32_t bucket_size);
+  void Mod(uint32_t tokens_per_sec,
+           uint32_t bucket_size);
+  void Mod(uint32_t tokens_per_sec,
+           uint32_t bucket_size,
+           uint32_t init_tokens);
   uint32_t tokens() const;
   bool Check(uint32_t need_tokens);
   int Overdraft(uint32_t need_tokens);
 
  private:
-  // not movable
-  TokenBucket(TokenBucket&&) = delete;
-  TokenBucket& operator=(TokenBucket&&) = delete;
+  CCB_NOT_COPYABLE_AND_MOVABLE(TokenBucket);
 
   uint32_t tokens_per_sec_;
   uint32_t bucket_size_;
-  int64_t token_count_;
   uint64_t last_gen_time_;
   uint64_t last_calc_delta_;
+  std::atomic<int64_t> token_count_;
+  bool enable_lock_;
+  std::mutex gen_mutex_;
 };
 
 inline uint32_t TokenBucket::tokens() const {
-  return (uint32_t)(token_count_ <= 0 ? 0 : token_count_);
+  int64_t token_count = token_count_.load(std::memory_order_relaxed);
+  return static_cast<uint32_t>(token_count <= 0 ? 0 : token_count);
 }
 
 }  // namespace ccb

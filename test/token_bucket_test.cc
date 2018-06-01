@@ -28,40 +28,103 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <unistd.h>
+#include <memory>
+#include <thread>
 #include "gtestx/gtestx.h"
 #include "ccbase/token_bucket.h"
 
-class TokenBucket : public testing::Test {
+class TokenBucketTest : public testing::TestWithParam<bool> {
  protected:
-  TokenBucket() : tb_(10000, 10000) {}
-  virtual ~TokenBucket() {}
+  TokenBucketTest() {}
+  virtual ~TokenBucketTest() {}
   virtual void SetUp() {
+    tb_.reset(new ccb::TokenBucket(n_, n_, n_, nullptr, GetParam()));
   }
   virtual void TearDown() {
   }
-  ccb::TokenBucket tb_;
+  std::unique_ptr<ccb::TokenBucket> tb_;
+  static constexpr unsigned int n_ = 10000;
 };
 
-TEST_F(TokenBucket, Get) {
-  const unsigned int n = 10000;
-  ASSERT_GE(tb_.tokens(), n);
-  ASSERT_TRUE(tb_.Check(n));
-  ASSERT_TRUE(tb_.Get(tb_.tokens()));
-  ASSERT_EQ(0U, tb_.tokens());
-  ASSERT_FALSE(tb_.Check(1));
-  ASSERT_FALSE(tb_.Get(1));
+constexpr unsigned int TokenBucketTest::n_;
+
+INSTANTIATE_TEST_CASE_P(IsEnableLock, TokenBucketTest, testing::Values(false, true));
+
+TEST_P(TokenBucketTest, Get) {
+  ASSERT_GE(tb_->tokens(), n_);
+  ASSERT_TRUE(tb_->Check(n_));
+  ASSERT_TRUE(tb_->Get(tb_->tokens()));
+  ASSERT_EQ(0U, tb_->tokens());
+  ASSERT_FALSE(tb_->Check(1));
+  ASSERT_FALSE(tb_->Get(1));
   sleep(1);
-  tb_.Gen();
-  ASSERT_EQ(n, tb_.tokens());
-  for (unsigned int i = 0; i < n; i++) {
-    ASSERT_TRUE(tb_.Check(1));
-    ASSERT_TRUE(tb_.Get(1));
+  tb_->Gen();
+  ASSERT_EQ(n_, tb_->tokens());
+  for (unsigned int i = 0; i < n_; i++) {
+    ASSERT_TRUE(tb_->Check(1));
+    ASSERT_TRUE(tb_->Get(1));
   }
-  ASSERT_FALSE(tb_.Check(1));
-  ASSERT_FALSE(tb_.Get(1));
+  ASSERT_FALSE(tb_->Check(1));
+  ASSERT_FALSE(tb_->Get(1));
 }
 
-PERF_TEST_F(TokenBucket, Get_Perf) {
-  if (!tb_.Get(1)) tb_.Mod(10000, 10000);
+PERF_TEST_P(TokenBucketTest, GetPerf) {
+  if (!tb_->Get(1)) tb_->Mod(n_, n_, n_);
+}
+
+PERF_TEST_P(TokenBucketTest, GenPerf) {
+  tb_->Gen();
+}
+
+class TokenBucketMTTest : public testing::Test {
+ protected:
+  TokenBucketMTTest() : counter_(0), stop_flag_(false) {}
+  virtual ~TokenBucketMTTest() {}
+  virtual void SetUp() {
+    tb_.reset(new ccb::TokenBucket(n_, n_, 0, nullptr, true));
+    gen_thread_1_ = std::thread([this] {
+      while (!stop_flag_) tb_->Gen();
+    });
+    gen_thread_2_ = std::thread([this] {
+      while (!stop_flag_) tb_->Gen();
+    });
+    get_thread_1_ = std::thread([this] {
+      while (!stop_flag_) {
+        if (tb_->Get()) counter_++;
+      }
+    });
+    mon_thread_ = std::thread([this] {
+      size_t last_counter = 0;
+      while (!stop_flag_) {
+        sleep(1);
+        size_t cur_counter = counter_.load();
+        fprintf(stderr, "get %lu tokens/s\n", cur_counter - last_counter);
+        last_counter = cur_counter;
+      }
+    });
+  }
+  virtual void TearDown() {
+    stop_flag_ = true;
+    mon_thread_.join();
+    get_thread_1_.join();
+    gen_thread_2_.join();
+    gen_thread_1_.join();
+  }
+  static constexpr unsigned int n_ = 10000;
+  std::thread gen_thread_1_;
+  std::thread gen_thread_2_;
+  std::thread get_thread_1_;
+  std::thread mon_thread_;
+  std::atomic<size_t> counter_;
+  std::atomic<bool> stop_flag_;
+  std::unique_ptr<ccb::TokenBucket> tb_;
+};
+
+constexpr unsigned int TokenBucketMTTest::n_;
+
+PERF_TEST_F(TokenBucketMTTest, Get) {
+  while (!tb_->Get()) {
+  }
+  counter_++;
 }
 
