@@ -65,8 +65,7 @@ class Locker {
 
 TokenBucket::TokenBucket(uint32_t tokens_per_sec)
     : TokenBucket(tokens_per_sec,
-                  tokens_per_sec / 5,
-                  true) {
+                  tokens_per_sec / 5) {
 }
 
 TokenBucket::TokenBucket(uint32_t tokens_per_sec,
